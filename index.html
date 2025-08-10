@@ -60,6 +60,15 @@
     .app-mode footer {
       display: none !important;
     }
+    .invisible { visibility: hidden !important; }
+    /* 簡易ローダー*/
+    #app.loading::before{
+      content:"読み込み中…";
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700;
+      background: rgba(163,213,240,.35);
+    }
   </style>
 </head>
 <body>
@@ -107,6 +116,8 @@
     const topMenu = document.getElementById("topMenu");
     const app     = document.getElementById("app");
 
+    let navSeq = 0; // 競合防止用の連番
+
     function pageFromLocation() {
       const u = new URL(location.href);
       return u.searchParams.get("page") || ""; // 空なら親トップを表示
@@ -114,11 +125,11 @@
 
     function showParentTop() {
       document.body.classList.remove("app-mode");
-      const app = document.getElementById("app");
-      app.classList.remove("fullscreen");
+      app.classList.remove("fullscreen","loading");
       app.classList.add("hidden");
-    
-      // ?page 削除して親トップに戻す
+      // ★ 残像防止：中身を空に
+      try { frame.src = "about:blank"; } catch (_) {}
+  
       const u = new URL(location.href);
       u.searchParams.delete("page");
       history.replaceState({ page: "" }, "", u.toString());
@@ -126,18 +137,27 @@
 
     function navigateTo(page, push = true) {
       if (!page) { showParentTop(); return; }
-    
+  
       const next = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
-      const frame = document.getElementById("gasFrame");
-      const app   = document.getElementById("app");
-    
-      // 親トップを消して iframe を全画面化
+      navSeq++;
+      const mySeq = navSeq;
+  
+      // 親トップを消して、まずは iframe を「非表示＋loading」に
       document.body.classList.add("app-mode");
       app.classList.remove("hidden");
-      app.classList.add("fullscreen");
-    
-      if (frame.src !== next) frame.src = next;
-    
+      app.classList.add("fullscreen","loading");
+      frame.classList.add("invisible");
+  
+      // ★ 先にsrcを差し替え、そのロードが完了したら表示
+      const onLoad = () => {
+        if (mySeq !== navSeq) return;            // 古い読み込みは無視
+        frame.classList.remove("invisible");
+        app.classList.remove("loading");
+        frame.removeEventListener("load", onLoad);
+      };
+      frame.addEventListener("load", onLoad);
+      frame.src = next;
+  
       if (push) {
         const u = new URL(location.href);
         u.searchParams.set("page", page);
@@ -173,5 +193,6 @@
   </script>
 </body>
 </html>
+
 
 
