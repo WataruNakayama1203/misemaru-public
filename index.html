@@ -116,8 +116,7 @@
     <!-- 子（GAS）を表示する領域 -->
     <div id="app" class="hidden">
       <iframe id="gasFrame" title="Misemaru App"
-        allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"
-        referrerpolicy="no-referrer"></iframe>
+        allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"></iframe>
 
     </div>
 
@@ -239,17 +238,17 @@
     if (initial) navigateTo(initial, false);
   
     // 子(GAS) → 親ナビ
-    window.addEventListener("message", (e) => {
+    window.addEventListener('message', (e) => {
+      if (e.source !== frame.contentWindow) return; // これが最重要
       const d = e.data || {};
-      if (d.type === "misemaru:navigate" && typeof d.url === "string") {
-        const p = new URL(d.url).searchParams.get("page") || "";
+      if (d.type === 'misemaru:navigate' && typeof d.url === 'string') {
+        const p = new URL(d.url).searchParams.get('page') || '';
         if (p && p !== pageFromLocation()) navigateTo(p, true);
-      }
-      if (d.type === "misemaru:close") {
+      } else if (d.type === 'misemaru:close') {
         hardResetToIndex();
       }
     });
-  
+
     // 戻る/進む
     window.addEventListener("popstate", () => {
       const p = pageFromLocation();
@@ -267,6 +266,7 @@
 
 </body>
 </html>
+
 
 
 
