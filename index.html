@@ -239,20 +239,46 @@
   
     // 子(GAS) → 親ナビ
     window.addEventListener('message', (e) => {
+      console.log("[PARENT recv]", { origin: e.origin, data: e.data });
+    
+      // オリジン許可（Apps Script は2種：script.google.com / *.googleusercontent.com）
       const okOrigin =
         e.origin === 'https://script.google.com' ||
         e.origin.endsWith('.googleusercontent.com');
-      if (!okOrigin) return;                // ← オリジンで絞る
+      if (!okOrigin) {
+        console.warn("[PARENT] ❌ rejected by origin", e.origin);
+        return;
+      }
     
       const d = e.data || {};
-      if (d.type === 'misemaru:navigate' && typeof d.url === 'string') {
-        const p = new URL(d.url).searchParams.get('page') || '';
-        if (p) navigateTo(p, true);         // ← 直接 frame.src いじらず既存の遷移関数を使う
+    
+      // まずACK返す（届いてることを子に知らせる）
+      try {
+        if (e.source && typeof e.source.postMessage === "function" && d.id) {
+          e.source.postMessage({ type: "misemaru:ack", id: d.id }, e.origin);
+          console.log("[PARENT] ◀ ACK sent", d.id);
+        }
+      } catch (err) {
+        console.warn("[PARENT] ACK error:", err);
+      }
+    
+      // ここから処理
+      if (d.type === 'misemaru:navigate') {
+        if (typeof d.page === 'string' && d.page) {
+          console.log("[PARENT] navigateTo(page):", d.page);
+          navigateTo(d.page, true);  // ← 既存の遷移関数を必ず使う（frame.src直書き禁止）
+        } else if (typeof d.url === 'string' && d.url) {
+          // 古い子側がURLで送ってきても一応対応
+          const p = new URL(d.url).searchParams.get('page') || '';
+          if (p) navigateTo(p, true);
+        } else {
+          console.warn("[PARENT] no 'page' or 'url' in message");
+        }
       } else if (d.type === 'misemaru:close') {
+        console.log("[PARENT] close request");
         hardResetToIndex();
       }
     });
-
 
     // 戻る/進む
     window.addEventListener("popstate", () => {
@@ -266,36 +292,10 @@
       }
     });
   </script>
-<script>
-  // 修正版
-const gasFrame = document.getElementById("gasFrame");
-window.addEventListener("message", (e) => {
-  console.log("[PARENT recv]", e.origin, e.data);
-
-  const fromGas = e.origin === "https://script.google.com" ||
-                  e.origin.endsWith(".googleusercontent.com");
-  if (!fromGas) return;
-
-  const d = e.data || {};
-  if (d.type === "misemaru:navigate" && typeof d.url === "string") {
-    const p = new URL(d.url).searchParams.get("page") || "";
-    if (!p) return;
-    const u = new URL(GAS_BASE);
-    u.searchParams.set("page", p);
-    console.log("[PARENT] set iframe:", u.toString());
-    gasFrame.src = u.toString();
-  } else if (d.type === "misemaru:close") {
-    hardResetToIndex?.();
-  }
-});
-
-
-</script>
-
-
 
 </body>
 </html>
+
 
 
 
