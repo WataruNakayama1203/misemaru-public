@@ -262,61 +262,37 @@
     });
   </script>
 <script>
-  // === 親デバッグ ===
-  const DEBUG = true;
   const frame = document.getElementById("gasFrame");
+window.addEventListener("message", (e) => {
+  // まずログ（届いてるか可視化）
+  console.log("[PARENT recv]", e.origin, e.data);
 
-  function PLOG(...args){ if(DEBUG) console.log("[PARENT]", ...args); }
+  // GASのオリジンだけ受ける（多重iframeなので source 判定は捨てる）
+  const fromGas = e.origin === "https://script.google.com" ||
+                  e.origin.endsWith(".googleusercontent.com");
+  if (!fromGas) return;
 
-  // いまのGAS_BASEを確認
-  PLOG("GAS_BASE =", typeof GAS_BASE !== "undefined" ? GAS_BASE : "(undefined)");
+  const d = e.data || {};
+  if (d.type === "misemaru:navigate" && typeof d.url === "string") {
+    const p = new URL(d.url).searchParams.get("page") || "";
+    if (!p) return;
+    const u = new URL(GAS_BASE); // ← ?key=... 付き
+    u.searchParams.set("page", p);
+    console.log("[PARENT] set iframe:", u.toString());
+    frame.src = u.toString();
+  } else if (d.type === "misemaru:close") {
+    // あなたの index 戻し処理
+    hardResetToIndex?.();
+  }
+});
 
-  // iframeの参照がズレてないか確認
-  PLOG("iframe ref:", frame, "contentWindow:", !!(frame && frame.contentWindow));
-
-  // postMessage受信ログ（最小チェックのみ）
-  window.addEventListener("message", (e) => {
-    const sameFrame = (e.source === frame?.contentWindow);
-    PLOG("message recv:", { origin: e.origin, sameFrame, data: e.data });
-
-    if (!sameFrame) return; // ←ここだけ残して他は一旦外す（厳しすぎるフィルタが原因のこと多い）
-
-    const d = e.data || {};
-    if (d.type === "misemaru:navigate" && typeof d.url === "string") {
-      // 受け取ったURLからpageを抜き出し、自分のGAS_BASEで安全に再作成
-      const p = new URL(d.url).searchParams.get("page") || "";
-      if (!p) { PLOG("no page -> ignore"); return; }
-
-      const u = new URL(GAS_BASE);  // GAS_BASE は ?key=... 付き
-      u.searchParams.set("page", p);
-
-      PLOG("➡ set iframe.src", u.toString());
-      frame.src = u.toString();     // 直接差し替えでOK（不安ならnavigateToでも可）
-
-      // 履歴も積むなら（なくてもOK）
-      try {
-        const loc = new URL(location.href);
-        loc.searchParams.set("page", p);
-        history.pushState({page: p}, "", loc.toString());
-      } catch(e){ PLOG("history push failed", e); }
-    }
-
-    if (d.type === "misemaru:close") {
-      PLOG("➡ close to index");
-      // あなたの hardResetToIndex / showParentTop を呼ぶ or location.replaceでindexへ
-      // location.replace(BASE_URL);
-    }
-  });
-
-  // iframeのロード状況も見ておくと吉
-  frame?.addEventListener("load", () => PLOG("iframe LOAD", frame?.src));
-  frame?.addEventListener("error", () => PLOG("iframe ERROR", frame?.src));
 </script>
 
 
 
 </body>
 </html>
+
 
 
 
