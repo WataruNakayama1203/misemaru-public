@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>💈 予約管理システムTOP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    html, body, #wrap, #app { height: 100%; margin: 0; }
+    body { background-color: #a3d5f0; }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .container-narrow { max-width: 560px; margin: 0 auto; }
+    .btn-lg small { font-size: 0.9rem; }
+    .hero { text-align: center; margin: 1rem 0; }
+    .hero img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="wrap" class="container container-narrow py-3">
+    <!-- ヘッダー（親UI） -->
+    <div class="hero">
+      <img src="https://raw.githubusercontent.com/WataruNakayama1203/misemaru-cloud-assets/main/misemaru_top2.png"
+           alt="みせまるクラウド ロゴ" />
+    </div>
+
+    <!-- 親のトップメニュー（必要に応じて残す or 子に全部寄せる） -->
+    <div id="topMenu" class="d-grid gap-3 mb-2">
+      <button class="btn btn-red btn-lg" onclick="navigateTo('10_availability')">
+        📅 予約管理（空き状況カレンダー）<br><small>予約の確認・追加・変更はこちら</small>
+      </button>
+      <button class="btn btn-green btn-lg" onclick="navigateTo('20_staff_main')">
+        👥 スタッフ管理<br><small>出勤予定やスタッフ情報の管理</small>
+      </button>
+      <button class="btn btn-blue btn-lg" onclick="navigateTo('30_register')">
+        📇 顧客管理<br><small>顧客情報の登録・編集</small>
+      </button>
+      <button class="btn btn-gray btn-lg" onclick="navigateTo('40_setting_main')">
+        🏪 店舗設定<br><small>営業時間・定休日・売上集計など</small>
+      </button>
+    </div>
+
+    <!-- 子（GAS）を表示する領域 -->
+    <div id="app" class="hidden">
+      <iframe id="gasFrame" loading="lazy" title="Misemaru App"></iframe>
+    </div>
+
+    <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
+      &copy; 2025 みせまるクラウド. All rights reserved.
+    </footer>
+  </div>
+
+  <script>
+    // ★ あなたのGAS /exec URL
+    const GAS_BASE = "https://script.google.com/macros/s/（ここをあなたのデプロイURLに）/exec";
+
+    const frame = document.getElementById("gasFrame");
+    const topMenu = document.getElementById("topMenu");
+    const app = document.getElementById("app");
+
+    function pageFromLocation() {
+      const u = new URL(location.href);
+      return u.searchParams.get("page") || ""; // 空なら親のトップを見せる
+    }
+
+    function showParentTop() {
+      // 親のトップ（ボタン一覧）を表示、iframeは隠す
+      topMenu.classList.remove("hidden");
+      app.classList.add("hidden");
+      // URL整える（?page削除）
+      const u = new URL(location.href);
+      u.searchParams.delete("page");
+      history.replaceState({ page: "" }, "", u.toString());
+    }
+
+    function navigateTo(page, push = true) {
+      if (!page) { showParentTop(); return; }
+
+      const next = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
+
+      // 親トップを隠してiframeを表示
+      topMenu.classList.add("hidden");
+      app.classList.remove("hidden");
+
+      // iframe差し替え
+      frame.src = next;
+
+      // 親URLも更新（履歴を積む）
+      if (push) {
+        const u = new URL(location.href);
+        u.searchParams.set("page", page);
+        history.pushState({ page }, "", u.toString());
+      }
+    }
+
+    // 初期表示
+    navigateTo(pageFromLocation(), /*push=*/false);
+
+    // 子（GAS）からのナビ要求を受け取る
+    window.addEventListener("message", (e) => {
+      // 本番は e.origin を厳格チェック推奨（script.google.com のみ）
+      const data = e.data || {};
+      if (data.type === "misemaru:navigate" && typeof data.url === "string") {
+        const u = new URL(data.url);
+        const page = u.searchParams.get("page") || "";
+        navigateTo(page, /*push=*/true);
+      }
+      if (data.type === "misemaru:close" ) {
+        // 例: 子から「親トップに戻して」の指示
+        navigateTo("", /*push=*/true);
+      }
+    });
+
+    // 戻る/進む対応
+    window.addEventListener("popstate", (e) => {
+      const page = e.state?.page ?? pageFromLocation();
+      if (page) navigateTo(page, /*push=*/false);
+      else showParentTop();
+    });
+  </script>
+</body>
+</html>
