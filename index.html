@@ -239,15 +239,20 @@
   
     // 子(GAS) → 親ナビ
     window.addEventListener('message', (e) => {
-      if (e.source !== frame.contentWindow) return; // これが最重要
+      const okOrigin =
+        e.origin === 'https://script.google.com' ||
+        e.origin.endsWith('.googleusercontent.com');
+      if (!okOrigin) return;                // ← オリジンで絞る
+    
       const d = e.data || {};
       if (d.type === 'misemaru:navigate' && typeof d.url === 'string') {
         const p = new URL(d.url).searchParams.get('page') || '';
-        if (p && p !== pageFromLocation()) navigateTo(p, true);
+        if (p) navigateTo(p, true);         // ← 直接 frame.src いじらず既存の遷移関数を使う
       } else if (d.type === 'misemaru:close') {
         hardResetToIndex();
       }
     });
+
 
     // 戻る/進む
     window.addEventListener("popstate", () => {
@@ -291,6 +296,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
