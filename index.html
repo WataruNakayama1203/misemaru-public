@@ -40,6 +40,26 @@
       transition: filter .3s ease, transform .2s ease; cursor: pointer;
     }
     .hero img:hover { filter: brightness(1.2); transform: scale(1.03); }
+
+    /* 子画面全画面表示用 */
+    .app-mode { overflow: hidden; }           /* 親スクロール隠す */
+    #app.fullscreen {
+      position: fixed; inset: 0;              /* 画面全体に広げる */
+      margin: 0; padding: 0;
+      z-index: 10;                            /* 親要素より前面 */
+      background: #a3d5f0;                    /* 透け防止の背景 */
+    }
+    #app.fullscreen iframe {
+      width: 100vw; height: 100vh;            /* 100% じゃなく vw/vh で確実に全画面 */
+      border: 0; display: block;
+    }
+  
+    /* 親のコンテンツは app-mode 中は隠す */
+    .app-mode #topMenu,
+    .app-mode .hero,
+    .app-mode footer {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -80,7 +100,7 @@
   </div>
 
   <script>
-    // ★ あなたのGAS /exec URL
+    //GAS URL
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec";
 
     const frame   = document.getElementById("gasFrame");
@@ -93,9 +113,12 @@
     }
 
     function showParentTop() {
-      topMenu.classList.remove("hidden");
+      document.body.classList.remove("app-mode");
+      const app = document.getElementById("app");
+      app.classList.remove("fullscreen");
       app.classList.add("hidden");
-      // ?page を消す（直リンク整形）
+    
+      // ?page 削除して親トップに戻す
       const u = new URL(location.href);
       u.searchParams.delete("page");
       history.replaceState({ page: "" }, "", u.toString());
@@ -103,17 +126,18 @@
 
     function navigateTo(page, push = true) {
       if (!page) { showParentTop(); return; }
-
+    
       const next = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
-
-      // 親トップを隠して iframe を出す
-      topMenu.classList.add("hidden");
+      const frame = document.getElementById("gasFrame");
+      const app   = document.getElementById("app");
+    
+      // 親トップを消して iframe を全画面化
+      document.body.classList.add("app-mode");
       app.classList.remove("hidden");
-
-      // 同一URLなら無駄に張り替えない
+      app.classList.add("fullscreen");
+    
       if (frame.src !== next) frame.src = next;
-
-      // 親URLも更新（履歴を積む）
+    
       if (push) {
         const u = new URL(location.href);
         u.searchParams.set("page", page);
@@ -149,3 +173,4 @@
   </script>
 </body>
 </html>
+
