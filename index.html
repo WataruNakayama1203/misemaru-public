@@ -279,36 +279,64 @@
         history.pushState({ page }, "", u.toString());
       }
     }
+// ========= 設定 =========
+// テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
+const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
 
-  
-    // 初期表示
-    const initial = pageFromLocation();
-    if (initial) navigateTo(initial, false);
-  
-    // 子(GAS) → 親ナビ
-    window.addEventListener('message', (e) => {
-      console.log("[PARENT recv]", { origin: e.origin, data: e.data });
-    
-      // まずは受信検証のため一旦許可（届くことが分かったら制限を戻す）
-      // const okOrigin = e.origin === 'https://script.google.com' || e.origin.endsWith('.googleusercontent.com');
-      // if (!okOrigin) return;
-    
-      const d = e.data || {};
-    
-      // ACK（任意）
-      try {
-        if (e.source && typeof e.source.postMessage === "function" && d.id) {
-          e.source.postMessage({ type: "misemaru:ack", id: d.id }, e.origin);
-          console.log("[PARENT] ◀ ACK sent", d.id);
-        }
-      } catch (err) { console.warn("[PARENT] ACK error:", err); }
-    
-      if (d.type === 'misemaru:navigate' && typeof d.page === 'string' && d.page) {
-        console.log("[PARENT] navigateTo(page):", d.page);
-        navigateTo(d.page, true);  // ← 既存の遷移関数を必ず使用
-      }
-    });
+// 受け付ける送信元
+const ALLOWED_ORIGINS = [
+  "https://script.google.com", // 固定
+  // *.googleusercontent.com は endsWith で許可するのでここは不要
+];
+function isAllowedOrigin(origin) {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (origin.endsWith(".googleusercontent.com")) return true;
+  return false;
+}
 
+// ========= 子(GAS) → 親ナビ =========
+window.addEventListener("message", (e) => {
+  const d = e.data || {};
+  // 必要ならログ
+  // console.log("[PARENT recv]", { origin: e.origin, data: d });
+
+  // ✅ オリジン許可（source一致チェックはしない）
+  if (!isAllowedOrigin(e.origin)) return;
+
+  // ◀ ACK（任意）
+  try {
+    if (e.source && typeof e.source.postMessage === "function" && d.id) {
+      e.source.postMessage({ type: "misemaru:ack", id: d.id }, e.origin);
+      // console.log("[PARENT] ACK sent", d.id);
+    }
+  } catch (err) {
+    // console.warn("[PARENT] ACK error:", err);
+  }
+
+  // ▶ ルーティング
+  if (d.type === "misemaru:navigate") {
+    // page か url のどちらかを許容（page優先）
+    if (typeof d.page === "string" && d.page) {
+      navigateTo(d.page, true);   // ← 既存の関数を必ず使用
+      return;
+    }
+    if (typeof d.url === "string" && d.url) {
+      const p = new URL(d.url).searchParams.get("page") || "";
+      if (p) navigateTo(p, true);
+      return;
+    }
+    return;
+  }
+
+  if (d.type === "misemaru:close") {
+    if (HOME_URL) {
+      location.href = HOME_URL;   // テナントのトップへ
+    } else {
+      hardResetToIndex();         // indexに“ハード戻し”
+    }
+    return;
+  }
+});
 
     // 戻る/進む
     window.addEventListener("popstate", () => {
@@ -325,23 +353,3 @@
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
