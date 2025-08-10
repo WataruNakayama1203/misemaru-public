@@ -138,106 +138,134 @@
   
     const frame   = document.getElementById("gasFrame");
     const app     = document.getElementById("app");
-    const overlay = document.getElementById("overlay");
+    const overlay = document.getElementById("overlay"); // あるなら使う。無ければ null でOK
   
-    let navSeq = 0; // 同時ナビの競合防止
+    let navSeq = 0;
   
-    function pageFromLocation() {
+    const pageFromLocation = () => {
       const u = new URL(location.href);
       return u.searchParams.get("page") || "";
-    }
+    };
+    const framePage = () => {
+      try {
+        const u = new URL(frame.src);
+        return u.searchParams.get("page") || "";
+      } catch { return ""; }
+    };
   
-    function showParentTop({fromHistory=false}={}) {
-      // indexを見せる
+    function showParentTop({ fromHistory = false } = {}) {
       document.body.classList.remove("app-mode");
       app.classList.add("hidden");
       app.classList.remove("fullscreen");
-      overlay.classList.add("hidden");
-      frame.classList.add("invisible"); // 中身は残すが見せない
+      if (overlay) overlay.classList.add("hidden");
   
-      // ← 履歴から戻ってきたときはURLいじらない
+      // 履歴から戻ってきた時はURLをいじらない
       if (!fromHistory) {
         const u = new URL(location.href);
         u.searchParams.delete("page");
-        history.pushState({page:""},"",u.toString());
+        history.pushState({ page: "" }, "", u.toString());
       }
     }
   
     function navigateTo(page, push = true) {
       if (!page) { showParentTop(); return; }
-    
-      const next = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
+  
+      const current = pageFromLocation();
+      const currentFrame = framePage();
+  
+      // ★ すでに同じpageなら何もしない（残像/スピナー防止）
+      if (current === page && currentFrame === page && app.classList.contains("fullscreen")) {
+        return;
+      }
+  
+      const nextUrl = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
       navSeq++; const mySeq = navSeq;
-    
-      overlay.classList.remove("hidden");
-      frame.classList.add("invisible");
-    
-      const cleanup = () => {
-        frame.removeEventListener("load", onLoad);
-        frame.removeEventListener("error", onError);
-        clearTimeout(timer);
-      };
-      const onLoad = () => {
-        if (mySeq !== navSeq) return;
-        cleanup();
-        overlay.classList.add("hidden");
+  
+      // 同じURLなら overlay も src 変更も不要
+      if (currentFrame !== page) {
+        if (overlay) overlay.classList.remove("hidden");
+        frame.classList.add("invisible");
+  
+        const cleanup = () => {
+          frame.removeEventListener("load", onLoad);
+          frame.removeEventListener("error", onError);
+          clearTimeout(timer);
+        };
+        const onLoad = () => {
+          if (mySeq !== navSeq) return;
+          cleanup();
+          if (overlay) overlay.classList.add("hidden");
+          document.body.classList.add("app-mode");
+          app.classList.remove("hidden");
+          app.classList.add("fullscreen");
+          frame.classList.remove("invisible");
+        };
+        const onError = () => {
+          if (mySeq !== navSeq) return;
+          cleanup();
+          if (overlay) overlay.classList.add("hidden");
+          alert("ページの読み込みに失敗しました。");
+          showParentTop();
+        };
+        const timer = setTimeout(() => {
+          if (mySeq !== navSeq) return;
+          cleanup();
+          if (overlay) overlay.classList.add("hidden");
+          showParentTop();
+        }, 12000);
+  
+        frame.addEventListener("load", onLoad, { once: true });
+        frame.addEventListener("error", onError, { once: true });
+        frame.src = nextUrl;
+      } else {
+        // すでに同じ画面が読み込まれている → ただ表示切替だけ
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
         frame.classList.remove("invisible");
-      };
-      const onError = () => {
-        if (mySeq !== navSeq) return;
-        cleanup();
-        overlay.classList.add("hidden");
-        alert("ページの読み込みに失敗しました。時間をおいて再試行してください。");
-      };
-      const timer = setTimeout(() => {
-        if (mySeq !== navSeq) return;
-        cleanup();
-        overlay.classList.add("hidden");
-        // 必要なら親トップに戻す等のフォールバック
-        showParentTop();
-      }, 12000);
-    
-      frame.addEventListener("load", onLoad);
-      frame.addEventListener("error", onError);
-      frame.src = next;
-    
-      if (push) {
+        if (overlay) overlay.classList.add("hidden");
+      }
+  
+      // ★ 現在のURLと同じ page なら履歴は積まない
+      if (push && current !== page) {
         const u = new URL(location.href);
         u.searchParams.set("page", page);
         history.pushState({ page }, "", u.toString());
       }
     }
-
+  
     // 初期表示
     const initial = pageFromLocation();
-    if (initial) navigateTo(initial, false); else showParentTop();
+    if (initial) navigateTo(initial, false);
+    else showParentTop();
   
-    // 子(GAS)からの遷移要求（goTo → postMessage）も同じロジックに流す
+    // 子(GAS)からの遷移要求：同じpageなら無視
     window.addEventListener("message", (e) => {
       const d = e.data || {};
       if (d.type === "misemaru:navigate" && typeof d.url === "string") {
         const u = new URL(d.url);
-        navigateTo(u.searchParams.get("page") || "", true);
+        const target = u.searchParams.get("page") || "";
+        if (target && target !== pageFromLocation()) {
+          navigateTo(target, true);
+        }
       }
       if (d.type === "misemaru:close") {
-        // 子から「トップへ」指示 → indexへ
         showParentTop();
       }
     });
   
-    // 戻る/進む対応（戻る1回でindexへ）
+    // 戻る/進む：URLの?pageが空ならindex、一致ならそのページへ
     window.addEventListener("popstate", () => {
-      const page = pageFromLocation();
-      if (page) navigateTo(page, false);
-      else showParentTop({fromHistory:true});
+      const p = pageFromLocation();
+      if (p) navigateTo(p, false);
+      else showParentTop({ fromHistory: true });
     });
   </script>
 
+
 </body>
 </html>
+
 
 
 
