@@ -171,6 +171,12 @@
       // 履歴を「indexで置き換え」→ forwardスタックも消える
       location.replace(BASE_URL);
     }
+
+    function urlFor(page) {
+      const u = new URL(GAS_BASE);   // ここに ?key=... が入ってる
+      u.searchParams.set("page", page);
+      return u.toString();
+    }
   
     function navigateTo(page, push = true) {
       if (!page) { hardResetToIndex(); return; }
@@ -181,7 +187,7 @@
       // 同じページなら何もしない（スピナー出さない）
       if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
   
-      const nextUrl = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
+      const nextUrl = urlFor(page);
       navSeq++; const mySeq = navSeq;
   
       // 読み込み中は index を見せたままオーバーレイだけ
@@ -262,6 +268,7 @@
 
 </body>
 </html>
+
 
 
 
