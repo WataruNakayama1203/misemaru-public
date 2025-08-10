@@ -262,12 +262,11 @@
     });
   </script>
 <script>
-  const frame = document.getElementById("gasFrame");
+  // 修正版
+const gasFrame = document.getElementById("gasFrame");
 window.addEventListener("message", (e) => {
-  // まずログ（届いてるか可視化）
   console.log("[PARENT recv]", e.origin, e.data);
 
-  // GASのオリジンだけ受ける（多重iframeなので source 判定は捨てる）
   const fromGas = e.origin === "https://script.google.com" ||
                   e.origin.endsWith(".googleusercontent.com");
   if (!fromGas) return;
@@ -276,15 +275,15 @@ window.addEventListener("message", (e) => {
   if (d.type === "misemaru:navigate" && typeof d.url === "string") {
     const p = new URL(d.url).searchParams.get("page") || "";
     if (!p) return;
-    const u = new URL(GAS_BASE); // ← ?key=... 付き
+    const u = new URL(GAS_BASE);
     u.searchParams.set("page", p);
     console.log("[PARENT] set iframe:", u.toString());
-    frame.src = u.toString();
+    gasFrame.src = u.toString();
   } else if (d.type === "misemaru:close") {
-    // あなたの index 戻し処理
     hardResetToIndex?.();
   }
 });
+
 
 </script>
 
@@ -292,6 +291,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
