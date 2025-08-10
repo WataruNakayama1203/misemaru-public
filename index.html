@@ -86,6 +86,30 @@
     margin-bottom: .75rem;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 追加・修正 */
+  #app { position: relative; }
+  
+  /* 読み込み中は iframe を薄暗く */
+  #app.loading iframe {
+    filter: brightness(0.6);
+    transition: filter .2s ease;
+  }
+  
+  /* アプリ内オーバーレイ（フルスクリーン時に使う） */
+  #inlineOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.35);
+    color: #fff;
+    text-align: center;
+  }
+  #inlineOverlay.show { display: flex; }
+
 </style>
 </head>
 <body>
@@ -118,6 +142,10 @@
       <iframe id="gasFrame" title="Misemaru App"
         allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"></iframe>
 
+      <div id="inlineOverlay" class="">
+        <div class="spinner"></div>
+        <div class="overlay-msg">ページ読み込み中…</div>
+      </div>
     </div>
 
     <!-- 🔶 読み込みオーバーレイ -->
@@ -176,22 +204,30 @@
       return u.toString();
     }
   
+    const inlineOverlay = document.getElementById("inlineOverlay");
+
     function navigateTo(page, push = true) {
       if (!page) { hardResetToIndex(); return; }
-  
+    
       const current = pageFromLocation();
       const currentFrame = framePage();
-  
-      // 同じページなら何もしない（スピナー出さない）
+    
+      // 同一ページなら何もしない
       if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
-  
+    
       const nextUrl = urlFor(page);
       navSeq++; const mySeq = navSeq;
-  
-      // 読み込み中は index を見せたままオーバーレイだけ
-      if (overlay) overlay.classList.remove("hidden");
-      frame.classList.add("invisible");
-  
+    
+      // 🔽 ここが肝：すでに全画面（= 子ページ表示中）のときは「薄暗く＋アプリ内オーバーレイ」
+      // まだ index で子を開く前なら、従来通りの全画面オーバーレイ＆iframe不可視
+      if (app.classList.contains("fullscreen")) {
+        app.classList.add("loading");
+        inlineOverlay?.classList.add("show");
+      } else {
+        overlay?.classList.remove("hidden");
+        frame.classList.add("invisible");
+      }
+    
       const cleanup = () => {
         frame.removeEventListener("load", onLoad);
         frame.removeEventListener("error", onError);
@@ -200,38 +236,50 @@
       const onLoad = () => {
         if (mySeq !== navSeq) return;
         cleanup();
-        if (overlay) overlay.classList.add("hidden");
-        document.body.classList.add("app-mode");
-        app.classList.remove("hidden");
-        app.classList.add("fullscreen");
-        frame.classList.remove("invisible");
+    
+        // どちらのオーバーレイを使っていたかで後片付け
+        if (app.classList.contains("fullscreen")) {
+          app.classList.remove("loading");
+          inlineOverlay?.classList.remove("show");
+        } else {
+          overlay?.classList.add("hidden");
+          document.body.classList.add("app-mode");
+          app.classList.remove("hidden");
+          app.classList.add("fullscreen");
+          frame.classList.remove("invisible");
+        }
       };
       const onError = () => {
         if (mySeq !== navSeq) return;
         cleanup();
-        if (overlay) overlay.classList.add("hidden");
-        // 失敗時も index に“ハードリセット”
+        // 片付け
+        app.classList.remove("loading");
+        inlineOverlay?.classList.remove("show");
+        overlay?.classList.add("hidden");
         hardResetToIndex();
         alert("ページの読み込みに失敗しました。");
       };
       const timer = setTimeout(() => {
         if (mySeq !== navSeq) return;
         cleanup();
+        app.classList.remove("loading");
+        inlineOverlay?.classList.remove("show");
+        overlay?.classList.add("hidden");
+        // タイムアウト時は静かに index へ
         hardResetToIndex();
-        // タイムアウト時は静かにindexへ
       }, 12000);
-  
+    
       frame.addEventListener("load", onLoad, { once: true });
       frame.addEventListener("error", onError, { once: true });
       frame.src = nextUrl;
-  
-      // 現在が同じpageなら履歴は増やさない
+    
       if (push && current !== page) {
         const u = new URL(location.href);
         u.searchParams.set("page", page);
         history.pushState({ page }, "", u.toString());
       }
     }
+
   
     // 初期表示
     const initial = pageFromLocation();
@@ -277,6 +325,7 @@
 
 </body>
 </html>
+
 
 
 
