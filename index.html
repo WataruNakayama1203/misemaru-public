@@ -49,9 +49,9 @@
       z-index: 10;                            /* 親要素より前面 */
       background: #a3d5f0;                    /* 透け防止の背景 */
     }
-    #app.fullscreen iframe {
-      width: 100vw; height: 100vh;            /* 100% じゃなく vw/vh で確実に全画面 */
-      border: 0; display: block;
+    #app.fullscreen iframe { width: 100vw; height: 100dvh; }
+    @supports not (height: 100dvh) {
+      #app.fullscreen iframe { height: 100vh; } /* 互換フォールバック */
     }
   
     /* 親のコンテンツは app-mode 中は隠す */
@@ -268,6 +268,7 @@
 
 </body>
 </html>
+
 
 
 
