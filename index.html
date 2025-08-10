@@ -136,9 +136,17 @@
   <script>
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec";
   
+    // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
+    const BASE_URL = (() => {
+      const u = new URL(location.href);
+      u.searchParams.delete("page");
+      // 絶対パス化 + ハッシュも消す派なら u.hash = "";
+      return u.origin + u.pathname;           // 末尾スラなし/ありはどちらでもOK
+    })();
+  
     const frame   = document.getElementById("gasFrame");
     const app     = document.getElementById("app");
-    const overlay = document.getElementById("overlay"); // あるなら使う。無ければ null でOK
+    const overlay = document.getElementById("overlay"); // あれば使う
   
     let navSeq = 0;
   
@@ -147,86 +155,73 @@
       return u.searchParams.get("page") || "";
     };
     const framePage = () => {
-      try {
-        const u = new URL(frame.src);
-        return u.searchParams.get("page") || "";
-      } catch { return ""; }
+      try { return new URL(frame.src).searchParams.get("page") || ""; }
+      catch { return ""; }
     };
   
-    function showParentTop({ fromHistory = false } = {}) {
+    // ★ indexへ“ハードに戻る”（履歴上書きで前のページを消す）
+    function hardResetToIndex() {
+      // 見た目を先にindex状態へ
       document.body.classList.remove("app-mode");
       app.classList.add("hidden");
       app.classList.remove("fullscreen");
+      frame.classList.add("invisible");
       if (overlay) overlay.classList.add("hidden");
   
-      // 履歴から戻ってきた時はURLをいじらない
-      if (!fromHistory) {
-        const u = new URL(location.href);
-        u.searchParams.delete("page");
-        history.pushState({ page: "" }, "", u.toString());
-      }
+      // 履歴を「indexで置き換え」→ forwardスタックも消える
+      location.replace(BASE_URL);
     }
   
     function navigateTo(page, push = true) {
-      if (!page) { showParentTop(); return; }
+      if (!page) { hardResetToIndex(); return; }
   
       const current = pageFromLocation();
       const currentFrame = framePage();
   
-      // ★ すでに同じpageなら何もしない（残像/スピナー防止）
-      if (current === page && currentFrame === page && app.classList.contains("fullscreen")) {
-        return;
-      }
+      // 同じページなら何もしない（スピナー出さない）
+      if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
   
       const nextUrl = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
       navSeq++; const mySeq = navSeq;
   
-      // 同じURLなら overlay も src 変更も不要
-      if (currentFrame !== page) {
-        if (overlay) overlay.classList.remove("hidden");
-        frame.classList.add("invisible");
+      // 読み込み中は index を見せたままオーバーレイだけ
+      if (overlay) overlay.classList.remove("hidden");
+      frame.classList.add("invisible");
   
-        const cleanup = () => {
-          frame.removeEventListener("load", onLoad);
-          frame.removeEventListener("error", onError);
-          clearTimeout(timer);
-        };
-        const onLoad = () => {
-          if (mySeq !== navSeq) return;
-          cleanup();
-          if (overlay) overlay.classList.add("hidden");
-          document.body.classList.add("app-mode");
-          app.classList.remove("hidden");
-          app.classList.add("fullscreen");
-          frame.classList.remove("invisible");
-        };
-        const onError = () => {
-          if (mySeq !== navSeq) return;
-          cleanup();
-          if (overlay) overlay.classList.add("hidden");
-          alert("ページの読み込みに失敗しました。");
-          showParentTop();
-        };
-        const timer = setTimeout(() => {
-          if (mySeq !== navSeq) return;
-          cleanup();
-          if (overlay) overlay.classList.add("hidden");
-          showParentTop();
-        }, 12000);
-  
-        frame.addEventListener("load", onLoad, { once: true });
-        frame.addEventListener("error", onError, { once: true });
-        frame.src = nextUrl;
-      } else {
-        // すでに同じ画面が読み込まれている → ただ表示切替だけ
+      const cleanup = () => {
+        frame.removeEventListener("load", onLoad);
+        frame.removeEventListener("error", onError);
+        clearTimeout(timer);
+      };
+      const onLoad = () => {
+        if (mySeq !== navSeq) return;
+        cleanup();
+        if (overlay) overlay.classList.add("hidden");
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
         frame.classList.remove("invisible");
+      };
+      const onError = () => {
+        if (mySeq !== navSeq) return;
+        cleanup();
         if (overlay) overlay.classList.add("hidden");
-      }
+        // 失敗時も index に“ハードリセット”
+        hardResetToIndex();
+        alert("ページの読み込みに失敗しました。");
+      };
+      const timer = setTimeout(() => {
+        if (mySeq !== navSeq) return;
+        cleanup();
+        hardResetToIndex();
+        // タイムアウト時は静かにindexへ
+      }, 12000);
   
-      // ★ 現在のURLと同じ page なら履歴は積まない
+      frame.addEventListener("load", onLoad, { once: true });
+      frame.addEventListener("error", onError, { once: true });
+      frame.src = nextUrl;
+  
+      // 現在が同じpageなら履歴は増やさない
       if (push && current !== page) {
         const u = new URL(location.href);
         u.searchParams.set("page", page);
@@ -237,34 +232,37 @@
     // 初期表示
     const initial = pageFromLocation();
     if (initial) navigateTo(initial, false);
-    else showParentTop();
   
-    // 子(GAS)からの遷移要求：同じpageなら無視
+    // 子(GAS) → 親ナビ
     window.addEventListener("message", (e) => {
       const d = e.data || {};
       if (d.type === "misemaru:navigate" && typeof d.url === "string") {
-        const u = new URL(d.url);
-        const target = u.searchParams.get("page") || "";
-        if (target && target !== pageFromLocation()) {
-          navigateTo(target, true);
-        }
+        const p = new URL(d.url).searchParams.get("page") || "";
+        if (p && p !== pageFromLocation()) navigateTo(p, true);
       }
       if (d.type === "misemaru:close") {
-        showParentTop();
+        hardResetToIndex();
       }
     });
   
-    // 戻る/進む：URLの?pageが空ならindex、一致ならそのページへ
+    // 戻る/進む
     window.addEventListener("popstate", () => {
       const p = pageFromLocation();
-      if (p) navigateTo(p, false);
-      else showParentTop({ fromHistory: true });
+      if (p) {
+        // 進む/戻るで page がある → そのpageを表示（同一なら何もしない）
+        navigateTo(p, false);
+      } else {
+        // ★ 戻るで index に来たら“ハードリセット”（forward消し）
+        hardResetToIndex();
+      }
     });
   </script>
 
 
+
 </body>
 </html>
+
 
 
 
