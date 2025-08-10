@@ -116,9 +116,10 @@
 
     <!-- 子（GAS）を表示する領域 -->
     <div id="app" class="hidden">
-      <iframe id="gasFrame" loading="lazy" title="Misemaru App"
-              allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"
-              referrerpolicy="no-referrer"></iframe>
+      <iframe id="gasFrame" title="Misemaru App"
+        allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"
+        referrerpolicy="no-referrer"></iframe>
+
     </div>
 
     <!-- 🔶 読み込みオーバーレイ -->
@@ -162,41 +163,54 @@
       }
     }
   
-    function navigateTo(page, push=true) {
+    function navigateTo(page, push = true) {
       if (!page) { showParentTop(); return; }
-  
+    
       const next = `${GAS_BASE}?page=${encodeURIComponent(page)}`;
-      navSeq++;
-      const mySeq = navSeq;
-  
-      // indexは表示のまま、暗幕＆スピナーだけ出す
+      navSeq++; const mySeq = navSeq;
+    
       overlay.classList.remove("hidden");
-  
-      // iframeはローディング完了まで非表示
       frame.classList.add("invisible");
-  
-      // ロード完了で全画面切替（この瞬間にだけiframeを見せる）
+    
+      const cleanup = () => {
+        frame.removeEventListener("load", onLoad);
+        frame.removeEventListener("error", onError);
+        clearTimeout(timer);
+      };
       const onLoad = () => {
-        if (mySeq !== navSeq) return; // 古い読み込みは無視
+        if (mySeq !== navSeq) return;
+        cleanup();
         overlay.classList.add("hidden");
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
         frame.classList.remove("invisible");
       };
-      frame.addEventListener("load", onLoad, { once: true });
-  
-      // 先にsrcだけ差し替える（旧画面は見せない）
-      if (frame.src !== next) frame.src = next;
-  
-      // 履歴は1回だけ積む → 戻る1回でindexに戻る
+      const onError = () => {
+        if (mySeq !== navSeq) return;
+        cleanup();
+        overlay.classList.add("hidden");
+        alert("ページの読み込みに失敗しました。時間をおいて再試行してください。");
+      };
+      const timer = setTimeout(() => {
+        if (mySeq !== navSeq) return;
+        cleanup();
+        overlay.classList.add("hidden");
+        // 必要なら親トップに戻す等のフォールバック
+        showParentTop();
+      }, 12000);
+    
+      frame.addEventListener("load", onLoad);
+      frame.addEventListener("error", onError);
+      frame.src = next;
+    
       if (push) {
         const u = new URL(location.href);
         u.searchParams.set("page", page);
         history.pushState({ page }, "", u.toString());
       }
     }
-  
+
     // 初期表示
     const initial = pageFromLocation();
     if (initial) navigateTo(initial, false); else showParentTop();
@@ -224,6 +238,7 @@
 
 </body>
 </html>
+
 
 
 
