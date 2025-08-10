@@ -7,87 +7,86 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
-    /* ---- 基本レイアウト（全高） ---- */
-    html, body { height: 100%; margin: 0; }
-    body { background-color: #a3d5f0; color: #333; }
-    #wrap { min-height: 100%; display: flex; flex-direction: column; }
-    #topMenu { margin-bottom: 1rem; }
-    #app { flex: 1; min-height: 60vh; } /* iframe領域 */
+  /* ---- ベース（全高） ---- */
+  html, body {
+    margin: 0; padding: 0;
+    background-color: #a3d5f0; color: #333;
+    height: auto;                /* vh固定をやめる */
+    min-height: 100dvh;          /* 実画面高に追従 */
+    overscroll-behavior-y: none; /* 親へのスクロール連鎖を止める */
+  }
+  #wrap { min-height: 100%; display: flex; flex-direction: column; }
+  #topMenu { margin-bottom: 1rem; }
 
-    /* iframeは領域いっぱいに */
-    iframe { width: 100%; height: 100%; border: 0; display: block; }
+  /* iframe 域（通常時は親の中に収まる） */
+  #app { flex: 1; }
 
-    /* ユーティリティ */
-    .hidden { display: none !important; }
+  /* ユーティリティ */
+  .hidden { display: none !important; }
+  .invisible { visibility: hidden !important; }
 
-    /* ボタン系（そのまま移植） */
-    .btn-red, .btn-green, .btn-blue, .btn-gray {
-      color: #fff; border: none; transition: .2s;
-    }
-    .btn-red   { background-color: #f87171; }
-    .btn-green { background-color: #4ade80; }
-    .btn-blue  { background-color: #38bdf8; }
-    .btn-gray  { background-color: #6b7280; }
-    .btn-red:hover   { background:#fff; color:#f87171; border:2px solid #f87171; }
-    .btn-green:hover { background:#fff; color:#4ade80; border:2px solid #4ade80; }
-    .btn-blue:hover  { background:#fff; color:#38bdf8; border:2px solid #38bdf8; }
-    .btn-gray:hover  { background:#fff; color:#6b7280; border:2px solid #6b7280; }
-    .btn-lg small { font-size: .9rem; }
+  /* ボタン色 */
+  .btn-red, .btn-green, .btn-blue, .btn-gray { color:#fff; border:none; transition:.2s; }
+  .btn-red   { background:#f87171; }
+  .btn-green { background:#4ade80; }
+  .btn-blue  { background:#38bdf8; }
+  .btn-gray  { background:#6b7280; }
+  .btn-red:hover   { background:#fff; color:#f87171; border:2px solid #f87171; }
+  .btn-green:hover { background:#fff; color:#4ade80; border:2px solid #4ade80; }
+  .btn-blue:hover  { background:#fff; color:#38bdf8; border:2px solid #38bdf8; }
+  .btn-gray:hover  { background:#fff; color:#6b7280; border:2px solid #6b7280; }
+  .btn-lg small { font-size: .9rem; }
 
-    /* ロゴ */
-    .hero img {
-      height: 60px; display: block; margin: 1rem auto;
-      transition: filter .3s ease, transform .2s ease; cursor: pointer;
-    }
-    .hero img:hover { filter: brightness(1.2); transform: scale(1.03); }
+  /* ロゴ */
+  .hero img {
+    height: 60px; display: block; margin: 1rem auto;
+    transition: filter .3s ease, transform .2s ease; cursor: pointer;
+  }
+  .hero img:hover { filter: brightness(1.2); transform: scale(1.03); }
 
-    /* 子画面全画面表示用 */
-    .app-mode { overflow: hidden; }           /* 親スクロール隠す */
-    #app.fullscreen {
-      position: fixed; inset: 0;              /* 画面全体に広げる */
-      margin: 0; padding: 0;
-      z-index: 10;                            /* 親要素より前面 */
-      background: #a3d5f0;                    /* 透け防止の背景 */
-    }
-    #app.fullscreen iframe { width: 100vw; height: 100dvh; }
-    @supports not (height: 100dvh) {
-      #app.fullscreen iframe { height: 100vh; } /* 互換フォールバック */
-    }
-  
-    /* 親のコンテンツは app-mode 中は隠す */
-    .app-mode #topMenu,
-    .app-mode .hero,
-    .app-mode footer {
-      display: none !important;
-    }
-    /* 全画面モード */
-    .app-mode { overflow: hidden; }
-    #app.fullscreen {
-      position: fixed; inset: 0; z-index: 10;
-      background: #a3d5f0;
-    }
-    #app.fullscreen iframe {
-      width: 100vw; height: 100vh; border: 0; display: block;
-    }
-    .hidden { display: none !important; }
-    .invisible { visibility: hidden !important; }
-  
-    /* 読み込みオーバーレイ（indexの上に重ねる） */
-    .overlay {
-      position: fixed; inset: 0; z-index: 20;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,.35);
-      color: #fff; text-align: center;
-    }
-    .spinner {
-      width: 48px; height: 48px;
-      border: 4px solid #fff; border-top-color: transparent;
-      border-radius: 50%; animation: spin 1s linear infinite;
-      margin-bottom: .75rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  /* ---- 子画面 全画面モード ---- */
+  .app-mode { overflow: hidden; }        /* 親スクロールを止める */
+  #app.fullscreen {
+    position: fixed; inset: 0;
+    z-index: 10;
+    background: #a3d5f0;                 /* 透け防止 */
+  }
+  /* iframe を“実”ビューポート高に。iOSでも戻らない */
+  #app.fullscreen iframe {
+    width: 100vw;
+    height: 100vh;                        /* 最低限のフォールバック */
+    display: block; border: 0;
+    overscroll-behavior: contain;         /* 子の端で止める（連鎖防止） */
+    -webkit-overflow-scrolling: touch;    /* 慣性スクロール */
+  }
+  @supports (height: 100svh) {
+    #app.fullscreen iframe { height: 100svh; }  /* Safari対策 */
+  }
+  @supports (height: 100dvh) {
+    #app.fullscreen iframe { height: 100dvh; }  /* 新標準：実画面高 */
+  }
+
+  /* 全画面時は親UIを消す */
+  .app-mode #topMenu,
+  .app-mode .hero,
+  .app-mode footer { display: none !important; }
+
+  /* ---- 読み込みオーバーレイ ---- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,.35);
+    color: #fff; text-align: center;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid #fff; border-top-color: transparent;
+    border-radius: 50%; animation: spin 1s linear infinite;
+    margin-bottom: .75rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body>
   <div id="wrap" class="container container-narrow py-3">
@@ -268,6 +267,7 @@
 
 </body>
 </html>
+
 
 
 
