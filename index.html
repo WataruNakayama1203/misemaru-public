@@ -224,11 +224,15 @@
       location.replace(BASE_URL);
     }
 
-    function urlFor(page) {
-      const u = new URL(GAS_BASE);   // ここに ?key=... が入ってる
+    function urlFor(page, params = {}) {
+      const u = new URL(GAS_BASE);
       u.searchParams.set("page", page);
+      for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== "") u.searchParams.set(k, String(v));
+      }
       return u.toString();
     }
+
   
     const inlineOverlay = document.getElementById("inlineOverlay");
 
@@ -276,7 +280,7 @@
     const currentFrame = framePage();
     if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
   
-    const nextUrl = urlFor(page);
+    const nextUrl = urlFor(page, params);
     navSeq++; const mySeq = navSeq;
   
     const wasFullscreen = app.classList.contains("fullscreen");
@@ -355,10 +359,14 @@
     // DOMに置いたまま次フレームでsrc切替（白チラ抑止）
     requestAnimationFrame(() => { spare.src = nextUrl; });
   
-    if (push && current !== page) {
+    if (push) {
       const u = new URL(location.href);
       u.searchParams.set("page", page);
-      history.pushState({ page }, "", u.toString());
+      for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== "") u.searchParams.set(k, String(v));
+        else u.searchParams.delete(k);
+      }
+      history.pushState({ page, params }, "", u.toString());
     }
   }
 
@@ -431,19 +439,22 @@ window.addEventListener("message", (e) => {
 
     // 戻る/進む
     window.addEventListener("popstate", () => {
-      const p = pageFromLocation();
+      const u = new URL(location.href);
+      const p = u.searchParams.get("page");
       if (p) {
-        // 進む/戻るで page がある → そのpageを表示（同一なら何もしない）
-        navigateTo(p, false);
+        const params = {};
+        u.searchParams.forEach((v, k) => { if (k !== "page") params[k] = v; });
+        navigateTo(p, false, params);
       } else {
-        // ★ 戻るで index に来たら“ハードリセット”（forward消し）
         hardResetToIndex();
       }
     });
+
   </script>
 
 </body>
 </html>
+
 
 
 
