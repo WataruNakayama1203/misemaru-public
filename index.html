@@ -138,7 +138,12 @@
   
   /* 既存のフェード指定が #frame なので、#gasFrame にも効くよう互換指定 */
   #gasFrame.is-fading { opacity: .01; transition: opacity .18s ease-out; }
-
+    
+  iframe#frame, iframe[data-role="content-frame"]{
+    touch-action: auto !important; 
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 </style>
 </head>
 <body>
@@ -185,7 +190,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.2</span>
+      <span id="app-version" class="ms-2">v0.3</span>
     </footer>
   </div>
 
@@ -454,3 +459,4 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
