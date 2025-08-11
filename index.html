@@ -185,7 +185,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.1</span>
+      <span id="app-version" class="ms-2">v0.2</span>
     </footer>
   </div>
 
@@ -381,32 +381,38 @@ function isAllowedOrigin(origin) {
 // ========= 子(GAS) → 親ナビ =========
 window.addEventListener("message", (e) => {
   const d = e.data || {};
-  // 必要ならログ
-  // console.log("[PARENT recv]", { origin: e.origin, data: d });
-
-  // ✅ オリジン許可（source一致チェックはしない）
   if (!isAllowedOrigin(e.origin)) return;
 
   // ◀ ACK（任意）
   try {
     if (e.source && typeof e.source.postMessage === "function" && d.id) {
       e.source.postMessage({ type: "misemaru:ack", id: d.id }, e.origin);
-      // console.log("[PARENT] ACK sent", d.id);
     }
-  } catch (err) {
-    // console.warn("[PARENT] ACK error:", err);
-  }
+  } catch (err) {}
 
   // ▶ ルーティング
   if (d.type === "misemaru:navigate") {
-    // page か url のどちらかを許容（page優先）
+    // ★ push/replaceとparamsをサポート
+    const push = d.replace ? false : true;
+    const params = (d.params && typeof d.params === "object") ? d.params : {};
+
     if (typeof d.page === "string" && d.page) {
-      navigateTo(d.page, true);   // ← 既存の関数を必ず使用
+      // ★ params付きで親のnavigateToへ
+      navigateTo(d.page, push, params);
       return;
     }
+
     if (typeof d.url === "string" && d.url) {
-      const p = new URL(d.url).searchParams.get("page") || "";
-      if (p) navigateTo(p, true);
+      // ★ URLからpageとparamsを抽出して渡す
+      const u = new URL(d.url, location.origin);
+      const page = u.searchParams.get("page") || "";
+      if (page) {
+        const p = {};
+        for (const [k, v] of u.searchParams.entries()) {
+          if (k !== "page") p[k] = v;
+        }
+        navigateTo(page, push, p);
+      }
       return;
     }
     return;
@@ -414,13 +420,14 @@ window.addEventListener("message", (e) => {
 
   if (d.type === "misemaru:close") {
     if (HOME_URL) {
-      location.href = HOME_URL;   // テナントのトップへ
+      location.href = HOME_URL;
     } else {
-      hardResetToIndex();         // indexに“ハード戻し”
+      hardResetToIndex();
     }
     return;
   }
 });
+
 
     // 戻る/進む
     window.addEventListener("popstate", () => {
@@ -437,6 +444,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
