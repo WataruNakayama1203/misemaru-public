@@ -7,71 +7,132 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
+  /* ---- ベース（全高） ---- */
   html, body {
     margin: 0;
     padding: 0;
-    height: 100%;
+    background-color: #a3d5f0;
+    color: #333;
+    height: auto;                 /* vh固定をやめる */
+    min-height: 100dvh;           /* 実画面高に追従 */
+    overscroll-behavior-y: none;  /* 親へのスクロール連鎖を止める */
+  }
+  #wrap { min-height: 100%; display: flex; flex-direction: column; }
+  #topMenu { margin-bottom: 1rem; }
+  
+  /* iframe 域（通常時は親の中に収まる） */
+  #app { flex: 1; position: relative; }
+  
+  /* ユーティリティ */
+  .hidden { display: none !important; }
+  .invisible { visibility: hidden !important; }
+  
+  /* ボタン色 */
+  .btn-red, .btn-green, .btn-blue, .btn-gray {
+    color: #fff;
+    border: none;
+    transition: .2s;
+  }
+  .btn-red   { background: #f87171; }
+  .btn-green { background: #4ade80; }
+  .btn-blue  { background: #38bdf8; }
+  .btn-gray  { background: #6b7280; }
+  .btn-red:hover   { background: #fff; color: #f87171; border: 2px solid #f87171; }
+  .btn-green:hover { background: #fff; color: #4ade80; border: 2px solid #4ade80; }
+  .btn-blue:hover  { background: #fff; color: #38bdf8; border: 2px solid #38bdf8; }
+  .btn-gray:hover  { background: #fff; color: #6b7280; border: 2px solid #6b7280; }
+  .btn-lg small { font-size: .9rem; }
+  
+  /* ロゴ */
+  .hero img {
+    height: 60px;
+    display: block;
+    margin: 1rem auto;
+    transition: filter .3s ease, transform .2s ease;
+    cursor: pointer;
+  }
+  .hero img:hover { filter: brightness(1.2); transform: scale(1.03); }
+  
+  /* ---- 子画面 全画面モード ---- */
+  .app-mode { overflow: hidden; }        /* 親スクロールを止める */
+  #app.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: #a3d5f0;                 /* 透け防止 */
   }
   
-  #app.fullscreen {
-  position: fixed;
-  inset: 0;
-  background: #a3d5f0;
-}
-
-/* 二重iframe土台 */
-#frame-stack {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100dvh; /* 実画面高 */
-  border: 0;
-  background: #e3f4fd;
-
-  /* スマホスクロール安全設定 */
-  touch-action: pan-x pan-y pinch-zoom !important;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-
-  opacity: 0;
-  transition: opacity .18s ease-out;
-  pointer-events: none; /* デフォルトは無効 */
-}
-
-.frame.is-active {
-  opacity: 1;
-  pointer-events: auto; /* アクティブなiframeだけ有効 */
-}
-
-/* オーバーレイ（必要部分だけブロック） */
-#inlineOverlay {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,.35);
-  color: #fff;
-}
-
-#inlineOverlay.show {
-  display: flex;
-}
-
-.spinner {
-  width: 48px; height: 48px;
-  border: 4px solid #fff; border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+  /* iframe（単一）設定 */
+  #app.fullscreen iframe {
+    width: 100%;
+    height: 100vh;                        /* フォールバック */
+    display: block;
+    border: 0;
+    background: #e3f4fd;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  @supports (height: 100svh) {
+    #app.fullscreen iframe { height: 100svh; }  /* Safari対策 */
+  }
+  @supports (height: 100dvh) {
+    #app.fullscreen iframe { height: 100dvh; }  /* 新標準：実画面高 */
+  }
+  
+  /* 全画面時は親UIを消す */
+  .app-mode #topMenu,
+  .app-mode .hero,
+  .app-mode footer { display: none !important; }
+  
+  /* ---- 読み込みオーバーレイ ---- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.35);
+    color: #fff;
+    text-align: center;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: .75rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  /* 読み込み中は iframe を薄暗く */
+  #app.loading iframe {
+    filter: brightness(0.6);
+    transition: filter .2s ease;
+  }
+  
+  /* アプリ内オーバーレイ（フルスクリーン時に使う） */
+  #inlineOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.35);
+    color: #fff;
+    text-align: center;
+  }
+  #inlineOverlay.show { display: flex; }
+  
+  /* iframe切替時のフェード（必要なら） */
+  #gasFrame.is-fading {
+    opacity: .01;
+    transition: opacity .18s ease-out;
+  }
 
 </style>
 </head>
@@ -99,52 +160,36 @@
         🏪 店舗設定<br><small>営業時間・定休日・売上集計など</small>
       </button>
     </div>
-    
+
     <!-- 子（GAS）を表示する領域 -->
-    <div id="app" class="fullscreen">
-  <iframe
-    id="frame"
-    src=  "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?page=23_staff_schedule&key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3"
-    allow="clipboard-read; clipboard-write"
-  ></iframe>
+    <div id="app" class="hidden fullscreen">
+      <iframe id="gasFrame" class="frame is-active"
+        allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"
+        style="width:100%; height:100dvh; border:0; background:#e3f4fd;
+               touch-action: pan-x pan-y pinch-zoom; -webkit-overflow-scrolling: touch;
+               overscroll-behavior: contain;">
+      </iframe>
+    
+      <div id="inlineOverlay">
+        <div class="spinner"></div>
+        <div class="overlay-msg">ページ読み込み中…</div>
+      </div>
+    </div>
 
-  <div id="inlineOverlay" class="hidden">
-    <div class="spinner"></div>
-    <p>読み込み中...</p>
-  </div>
-</div>
 
+    <!-- 🔶 読み込みオーバーレイ -->
+    <div id="overlay" class="overlay hidden" aria-hidden="true">
+      <div class="spinner"></div>
+      <div class="overlay-msg">ページ読み込み中…</div>
+    </div>
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.6</span>
+      <span id="app-version" class="ms-2">v0.5</span>
     </footer>
   </div>
 
   <script>
-    function showOverlay() {
-      document.getElementById('inlineOverlay').classList.add('show');
-    }
-    
-    function hideOverlay() {
-      document.getElementById('inlineOverlay').classList.remove('show');
-    }
-    
-    function navigateTo(url) {
-      showOverlay();
-    
-      // アクティブiframeの入れ替え
-      const active = document.querySelector('.frame.is-active');
-      const inactive = [...document.querySelectorAll('.frame')].find(f => f !== active);
-    
-      inactive.src = url;
-      inactive.onload = () => {
-        active.classList.remove('is-active');
-        inactive.classList.add('is-active');
-        hideOverlay();
-      };
-    }
-
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
     // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
@@ -191,37 +236,6 @@
   
     const inlineOverlay = document.getElementById("inlineOverlay");
 
-    // --- 起動時に #gasFrame を二重バッファにアップグレード ---
-    (function upgradeToDoubleBuffer(){
-      const f1 = document.getElementById('gasFrame');
-      if (!f1) return;
-    
-      const stack = document.createElement('div');
-      stack.id = 'frame-stack';
-      // 🔑 初期状態は隠しておく（index表示の間は見せない）
-      stack.style.display = 'none';
-    
-      f1.parentNode.insertBefore(stack, f1);
-      stack.appendChild(f1);
-    
-      f1.classList.add('frame', 'is-active');
-    
-      const f2 = f1.cloneNode(false);
-      f2.id = 'gasFrame_spare';
-      f2.classList.remove('is-active');
-      stack.appendChild(f2);
-    })();
-
-
-
-    function getFrames(){
-    const a = document.getElementById('gasFrame');
-    const b = document.getElementById('gasFrame_spare');
-    const active = a.classList.contains('is-active') ? a : b;
-    const spare  = (active === a) ? b : a;
-    return { active, spare };
-  }
-  
   // ← これで常に“表示中の方”を見る
   const framePage = () => {
     try { return new URL(getFrames().active.src).searchParams.get("page") || ""; }
@@ -232,17 +246,15 @@
     if (!page) { hardResetToIndex(); return; }
   
     const current = pageFromLocation();
-    const currentFrame = framePage();
-    if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
+    if (current === page && app.classList.contains("fullscreen")) return;
   
     const nextUrl = urlFor(page, params);
     navSeq++; const mySeq = navSeq;
   
-    const wasFullscreen = app.classList.contains("fullscreen");
     let overlayTimer;
   
-    // オーバーレイは遅延（速い遷移なら出さない）
-    if (wasFullscreen) {
+    // オーバーレイ制御
+    if (app.classList.contains("fullscreen")) {
       inlineOverlay?.classList.remove("show");
       overlayTimer = setTimeout(() => {
         app.classList.add("loading");
@@ -253,36 +265,24 @@
       overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
     }
   
-    const { active, spare } = getFrames();
-    const stack = document.getElementById('frame-stack');
+    const frameEl = document.getElementById('gasFrame');
   
     const cleanup = () => {
-      spare.removeEventListener("load", onLoad);
-      spare.removeEventListener("error", onError);
+      frameEl.removeEventListener("load", onLoad);
+      frameEl.removeEventListener("error", onError);
       clearTimeout(overlayTimer);
       clearTimeout(timer);
-    };
-  
-    const swap = () => {
-      spare.classList.add("is-active");
-      active.classList.remove("is-active");
     };
   
     const onLoad = () => {
       if (mySeq !== navSeq) return;
       cleanup();
   
-      if (!wasFullscreen) {
-        // 🔑 初回遷移で初めて iframe レイヤを見せる
-        if (stack) stack.style.display = 'block';
+      if (!app.classList.contains("fullscreen")) {
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
       }
-  
-      // クロスフェード
-      spare.classList.add("is-active");
-      active.classList.remove("is-active");
   
       app.classList.remove("loading");
       inlineOverlay?.classList.remove("show");
@@ -308,11 +308,10 @@
       hardResetToIndex();
     }, 12000);
   
-    spare.addEventListener("load", onLoad,  { once: true });
-    spare.addEventListener("error", onError,{ once: true });
+    frameEl.addEventListener("load", onLoad, { once: true });
+    frameEl.addEventListener("error", onError, { once: true });
   
-    // DOMに置いたまま次フレームでsrc切替（白チラ抑止）
-    requestAnimationFrame(() => { spare.src = nextUrl; });
+    frameEl.src = nextUrl;
   
     if (push) {
       const u = new URL(location.href);
@@ -324,6 +323,7 @@
       history.pushState({ page, params }, "", u.toString());
     }
   }
+
 
 
 // ========= 設定 =========
@@ -409,8 +409,6 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
-
-
 
 
 
