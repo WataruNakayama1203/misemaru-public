@@ -14,18 +14,65 @@
   }
   
   #app.fullscreen {
-    position: fixed;
-    inset: 0;
-    background: #a3d5f0;
-  }
-  
-  #frame {
-    touch-action: pan-x pan-y pinch-zoom !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    pointer-events: auto !important;
-    background: #e3f4fd;
-  }
+  position: fixed;
+  inset: 0;
+  background: #a3d5f0;
+}
+
+/* 二重iframe土台 */
+#frame-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100dvh; /* 実画面高 */
+  border: 0;
+  background: #e3f4fd;
+
+  /* スマホスクロール安全設定 */
+  touch-action: pan-x pan-y pinch-zoom !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+
+  opacity: 0;
+  transition: opacity .18s ease-out;
+  pointer-events: none; /* デフォルトは無効 */
+}
+
+.frame.is-active {
+  opacity: 1;
+  pointer-events: auto; /* アクティブなiframeだけ有効 */
+}
+
+/* オーバーレイ（必要部分だけブロック） */
+#inlineOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.35);
+  color: #fff;
+}
+
+#inlineOverlay.show {
+  display: flex;
+}
+
+.spinner {
+  width: 48px; height: 48px;
+  border: 4px solid #fff; border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 </style>
 </head>
 <body>
@@ -52,30 +99,56 @@
         🏪 店舗設定<br><small>営業時間・定休日・売上集計など</small>
       </button>
     </div>
-
+    
     <!-- 子（GAS）を表示する領域 -->
     <div id="app" class="fullscreen">
-      <iframe
-        id="frame"
+    <div id="frame-stack">
+      <iframe id="frameA" class="frame is-active"
         src="https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?page=23_staff_schedule&key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3"
-        style="width:100%; height:100dvh; border:0; display:block;"
-      ></iframe>
+        data-role="content-frame">
+      </iframe>
+      <iframe id="frameB" class="frame"
+        data-role="content-frame">
+      </iframe>
     </div>
-
-
-    <!-- 🔶 読み込みオーバーレイ -->
-    <div id="overlay" class="overlay hidden" aria-hidden="true">
+  
+    <!-- オーバーレイ -->
+    <div id="inlineOverlay" class="hidden">
       <div class="spinner"></div>
-      <div class="overlay-msg">ページ読み込み中…</div>
+      <p>読み込み中...</p>
     </div>
+  </div>
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.5</span>
+      <span id="app-version" class="ms-2">v0.6</span>
     </footer>
   </div>
 
   <script>
+    function showOverlay() {
+      document.getElementById('inlineOverlay').classList.add('show');
+    }
+    
+    function hideOverlay() {
+      document.getElementById('inlineOverlay').classList.remove('show');
+    }
+    
+    function navigateTo(url) {
+      showOverlay();
+    
+      // アクティブiframeの入れ替え
+      const active = document.querySelector('.frame.is-active');
+      const inactive = [...document.querySelectorAll('.frame')].find(f => f !== active);
+    
+      inactive.src = url;
+      inactive.onload = () => {
+        active.classList.remove('is-active');
+        inactive.classList.add('is-active');
+        hideOverlay();
+      };
+    }
+
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
     // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
@@ -340,6 +413,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
