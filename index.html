@@ -45,29 +45,20 @@
   .hero img:hover { filter: brightness(1.2); transform: scale(1.03); }
 
   /* ---- 子画面 全画面モード ---- */
-  /* 画面を1枚のアプリにする */
-  body.app-mode { overflow: hidden; }
-  
+  .app-mode { overflow: hidden; }        /* 親スクロールを止める */
   #app.fullscreen {
-    position: fixed;
-    inset: 0;
-    /* モバイルのアドレスバー対策：dvh→svh→vh の順にフォールバック */
-    height: 100dvh;
-    height: 100svh;
-    height: 100vh;
+    position: fixed; inset: 0;
+    z-index: 10;
+    background: #a3d5f0;                 /* 透け防止 */
   }
-  
+  /* iframe を“実”ビューポート高に。iOSでも戻らない */
   #app.fullscreen iframe {
-    display: block;
-    width: 100%;
-    border: 0;
-    /* iframe も常にビューポート高に貼り付ける */
-    height: 100dvh;
-    height: 100svh;
-    height: 100vh;
-    min-height: 100vh;
+    width: 100vw;
+    height: 100vh;                        /* 最低限のフォールバック */
+    display: block; border: 0;
+    overscroll-behavior: contain;         /* 子の端で止める（連鎖防止） */
+    -webkit-overflow-scrolling: touch;    /* 慣性スクロール */
   }
-
   @supports (height: 100svh) {
     #app.fullscreen iframe { height: 100svh; }  /* Safari対策 */
   }
@@ -194,7 +185,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.3</span>
+      <span id="app-version" class="ms-2">v0.2</span>
     </footer>
   </div>
 
@@ -379,18 +370,6 @@
     }
   }
 
-(function setFrameHeight() {
-  const iframe = document.getElementById("gasFrame") || document.querySelector("#app iframe");
-  if (!iframe) return;
-  const vh = Math.max(window.visualViewport?.height || 0, window.innerHeight || 0);
-  iframe.style.height = vh + "px";
-  window.addEventListener("resize", () => {
-    const vh2 = Math.max(window.visualViewport?.height || 0, window.innerHeight || 0);
-    iframe.style.height = vh2 + "px";
-  }, { passive: true });
-})();
-
-
 
 // ========= 設定 =========
 // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
@@ -475,11 +454,3 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
