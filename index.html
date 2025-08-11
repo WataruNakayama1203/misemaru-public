@@ -109,7 +109,21 @@
     text-align: center;
   }
   #inlineOverlay.show { display: flex; }
-
+  /* iframeの初期背景を親と合わせる：白チラ回避 */
+  #frame {
+    background: #e3f4fd; /* 親の背景色に合わせる。透明でもOKだが子ページが白指定だと負ける */
+    will-change: opacity;
+    transition: opacity .18s ease-out;
+    opacity: 1;
+  }
+  
+  /* 読み替え中は薄くする（完全に非表示にしない） */
+  #frame.is-fading {
+    opacity: .01; /* 0にすると合成レイヤ落ち→白チラ要因になる端末がある */
+  }
+  
+  /* オーバーレイは遅延で出す。すぐ出すと“チラ見え”の原因 */
+  #overlay.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -218,27 +232,40 @@
       const nextUrl = urlFor(page);
       navSeq++; const mySeq = navSeq;
     
-      // 🔽 ここが肝：すでに全画面（= 子ページ表示中）のときは「薄暗く＋アプリ内オーバーレイ」
-      // まだ index で子を開く前なら、従来通りの全画面オーバーレイ＆iframe不可視
-      if (app.classList.contains("fullscreen")) {
-        app.classList.add("loading");
-        inlineOverlay?.classList.add("show");
+      const wasFullscreen = app.classList.contains("fullscreen");
+      let overlayTimer;
+    
+      // 🔽 表示切替：すぐ真っ白/真っ暗を見せない（遷移が遅い時だけ被せる）
+      if (wasFullscreen) {
+        // 子ページ→子ページ：アプリ内オーバーレイを遅延で
+        inlineOverlay?.classList.remove("show");
+        overlayTimer = setTimeout(() => {
+          app.classList.add("loading");
+          inlineOverlay?.classList.add("show");
+        }, 220);
       } else {
-        overlay?.classList.remove("hidden");
-        frame.classList.add("invisible");
+        // index→子ページ：全画面オーバーレイも遅延で
+        overlay?.classList.add("hidden");
+        overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
       }
+    
+      // ❌ display/visibilityで消さない → ✅ 薄くフェード（白/グレーのチラ見えを作らない）
+      frame.classList.add("is-fading");
     
       const cleanup = () => {
         frame.removeEventListener("load", onLoad);
         frame.removeEventListener("error", onError);
+        clearTimeout(overlayTimer);
         clearTimeout(timer);
       };
+    
       const onLoad = () => {
         if (mySeq !== navSeq) return;
         cleanup();
     
-        // どちらのオーバーレイを使っていたかで後片付け
-        if (app.classList.contains("fullscreen")) {
+        frame.classList.remove("is-fading");
+    
+        if (wasFullscreen) {
           app.classList.remove("loading");
           inlineOverlay?.classList.remove("show");
         } else {
@@ -246,22 +273,25 @@
           document.body.classList.add("app-mode");
           app.classList.remove("hidden");
           app.classList.add("fullscreen");
-          frame.classList.remove("invisible");
+          // 以前は frame.classList.remove("invisible"); してたが不要
         }
       };
+    
       const onError = () => {
         if (mySeq !== navSeq) return;
         cleanup();
-        // 片付け
+        frame.classList.remove("is-fading");
         app.classList.remove("loading");
         inlineOverlay?.classList.remove("show");
         overlay?.classList.add("hidden");
         hardResetToIndex();
         alert("ページの読み込みに失敗しました。");
       };
+    
       const timer = setTimeout(() => {
         if (mySeq !== navSeq) return;
         cleanup();
+        frame.classList.remove("is-fading");
         app.classList.remove("loading");
         inlineOverlay?.classList.remove("show");
         overlay?.classList.add("hidden");
@@ -271,7 +301,9 @@
     
       frame.addEventListener("load", onLoad, { once: true });
       frame.addEventListener("error", onError, { once: true });
-      frame.src = nextUrl;
+    
+      // ❗️srcの差し替えは次フレームで（レイアウト確定後に切り替えるとチラつきが減る）
+      requestAnimationFrame(() => { frame.src = nextUrl; });
     
       if (push && current !== page) {
         const u = new URL(location.href);
@@ -279,6 +311,7 @@
         history.pushState({ page }, "", u.toString());
       }
     }
+
 // ========= 設定 =========
 // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
 const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
@@ -353,3 +386,4 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
