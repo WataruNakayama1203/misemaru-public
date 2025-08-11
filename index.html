@@ -124,30 +124,12 @@
   
   /* オーバーレイは遅延で出す。すぐ出すと“チラ見え”の原因 */
   #overlay.hidden { display: none; }
-
-  /* 2枚重ねの土台 + フェード */
-  #frame-stack { position: relative; width: 100%; height: 100%; }
-  .frame {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    border: 0; background: #e3f4fd;
-    opacity: 0; transition: opacity .18s ease-out;
-    pointer-events: none;
+  #gasFrame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
   }
-  .frame.is-active { opacity: 1; pointer-events: auto; }
-  
-  /* 既存のフェード指定が #frame なので、#gasFrame にも効くよう互換指定 */
-  #gasFrame.is-fading { opacity: .01; transition: opacity .18s ease-out; }
-    
-  iframe#frame, iframe[data-role="content-frame"]{
-    touch-action: auto !important; 
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-    iframe#frame {
-  touch-action: pan-x pan-y pinch-zoom !important;
-  -webkit-overflow-scrolling: touch;
-}
 </style>
 </head>
 <body>
@@ -245,29 +227,6 @@
   
     const inlineOverlay = document.getElementById("inlineOverlay");
 
-    // --- 起動時に #gasFrame を二重バッファにアップグレード ---
-    (function upgradeToDoubleBuffer(){
-      const f1 = document.getElementById('gasFrame');
-      if (!f1) return;
-    
-      const stack = document.createElement('div');
-      stack.id = 'frame-stack';
-      // 🔑 初期状態は隠しておく（index表示の間は見せない）
-      stack.style.display = 'none';
-    
-      f1.parentNode.insertBefore(stack, f1);
-      stack.appendChild(f1);
-    
-      f1.classList.add('frame', 'is-active');
-    
-      const f2 = f1.cloneNode(false);
-      f2.id = 'gasFrame_spare';
-      f2.classList.remove('is-active');
-      stack.appendChild(f2);
-    })();
-
-
-
     function getFrames(){
     const a = document.getElementById('gasFrame');
     const b = document.getElementById('gasFrame_spare');
@@ -325,23 +284,18 @@
     const onLoad = () => {
       if (mySeq !== navSeq) return;
       cleanup();
-  
+    
       if (!wasFullscreen) {
-        // 🔑 初回遷移で初めて iframe レイヤを見せる
-        if (stack) stack.style.display = 'block';
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
       }
-  
-      // クロスフェード
-      spare.classList.add("is-active");
-      active.classList.remove("is-active");
-  
+    
       app.classList.remove("loading");
       inlineOverlay?.classList.remove("show");
       overlay?.classList.add("hidden");
     };
+
   
     const onError = () => {
       if (mySeq !== navSeq) return;
@@ -463,6 +417,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
