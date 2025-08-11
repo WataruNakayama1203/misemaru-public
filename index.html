@@ -7,147 +7,25 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
-  /* ---- ベース（全高） ---- */
   html, body {
-    margin: 0; padding: 0;
-    background-color: #a3d5f0; color: #333;
-    height: auto;                /* vh固定をやめる */
-    min-height: 100dvh;          /* 実画面高に追従 */
-    overscroll-behavior-y: none; /* 親へのスクロール連鎖を止める */
+    margin: 0;
+    padding: 0;
+    height: 100%;
   }
-  #wrap { min-height: 100%; display: flex; flex-direction: column; }
-  #topMenu { margin-bottom: 1rem; }
-
-  /* iframe 域（通常時は親の中に収まる） */
-  #app { flex: 1; }
-
-  /* ユーティリティ */
-  .hidden { display: none !important; }
-  .invisible { visibility: hidden !important; }
-
-  /* ボタン色 */
-  .btn-red, .btn-green, .btn-blue, .btn-gray { color:#fff; border:none; transition:.2s; }
-  .btn-red   { background:#f87171; }
-  .btn-green { background:#4ade80; }
-  .btn-blue  { background:#38bdf8; }
-  .btn-gray  { background:#6b7280; }
-  .btn-red:hover   { background:#fff; color:#f87171; border:2px solid #f87171; }
-  .btn-green:hover { background:#fff; color:#4ade80; border:2px solid #4ade80; }
-  .btn-blue:hover  { background:#fff; color:#38bdf8; border:2px solid #38bdf8; }
-  .btn-gray:hover  { background:#fff; color:#6b7280; border:2px solid #6b7280; }
-  .btn-lg small { font-size: .9rem; }
-
-  /* ロゴ */
-  .hero img {
-    height: 60px; display: block; margin: 1rem auto;
-    transition: filter .3s ease, transform .2s ease; cursor: pointer;
-  }
-  .hero img:hover { filter: brightness(1.2); transform: scale(1.03); }
-
-  /* ---- 子画面 全画面モード ---- */
-  .app-mode { overflow: hidden; }        /* 親スクロールを止める */
+  
   #app.fullscreen {
-    position: fixed; inset: 0;
-    z-index: 10;
-    background: #a3d5f0;                 /* 透け防止 */
-  }
-  /* iframe を“実”ビューポート高に。iOSでも戻らない */
-  #app.fullscreen iframe {
-    width: 100vw;
-    height: 100vh;                        /* 最低限のフォールバック */
-    display: block; border: 0;
-    overscroll-behavior: contain;         /* 子の端で止める（連鎖防止） */
-    -webkit-overflow-scrolling: touch;    /* 慣性スクロール */
-  }
-  @supports (height: 100svh) {
-    #app.fullscreen iframe { height: 100svh; }  /* Safari対策 */
-  }
-  @supports (height: 100dvh) {
-    #app.fullscreen iframe { height: 100dvh; }  /* 新標準：実画面高 */
-  }
-
-  /* 全画面時は親UIを消す */
-  .app-mode #topMenu,
-  .app-mode .hero,
-  .app-mode footer { display: none !important; }
-
-  /* ---- 読み込みオーバーレイ ---- */
-  .overlay {
-    position: fixed; inset: 0; z-index: 20;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    background: rgba(0,0,0,.35);
-    color: #fff; text-align: center;
-  }
-  .spinner {
-    width: 48px; height: 48px;
-    border: 4px solid #fff; border-top-color: transparent;
-    border-radius: 50%; animation: spin 1s linear infinite;
-    margin-bottom: .75rem;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* 追加・修正 */
-  #app { position: relative; }
-  
-  /* 読み込み中は iframe を薄暗く */
-  #app.loading iframe {
-    filter: brightness(0.6);
-    transition: filter .2s ease;
-  }
-  
-  /* アプリ内オーバーレイ（フルスクリーン時に使う） */
-  #inlineOverlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 30;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,.35);
-    color: #fff;
-    text-align: center;
+    background: #a3d5f0;
   }
-  #inlineOverlay.show { display: flex; }
-  /* iframeの初期背景を親と合わせる：白チラ回避 */
+  
   #frame {
-    background: #e3f4fd; /* 親の背景色に合わせる。透明でもOKだが子ページが白指定だと負ける */
-    will-change: opacity;
-    transition: opacity .18s ease-out;
-    opacity: 1;
-  }
-  
-  /* 読み替え中は薄くする（完全に非表示にしない） */
-  #frame.is-fading {
-    opacity: .01; /* 0にすると合成レイヤ落ち→白チラ要因になる端末がある */
-  }
-  
-  /* オーバーレイは遅延で出す。すぐ出すと“チラ見え”の原因 */
-  #overlay.hidden { display: none; }
-
-  /* 2枚重ねの土台 + フェード */
-  #frame-stack { position: relative; width: 100%; height: 100%; }
-  .frame {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    border: 0; background: #e3f4fd;
-    opacity: 0; transition: opacity .18s ease-out;
-    pointer-events: none;
-  }
-  .frame.is-active { opacity: 1; pointer-events: auto; }
-  
-  /* 既存のフェード指定が #frame なので、#gasFrame にも効くよう互換指定 */
-  #gasFrame.is-fading { opacity: .01; transition: opacity .18s ease-out; }
-    
-  iframe#frame, iframe[data-role="content-frame"]{
-    touch-action: auto !important; 
+    touch-action: pan-x pan-y pinch-zoom !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    pointer-events: auto !important;
+    background: #e3f4fd;
   }
-    iframe#frame {
-  touch-action: pan-x pan-y pinch-zoom !important;
-  -webkit-overflow-scrolling: touch;
-}
 </style>
 </head>
 <body>
@@ -176,15 +54,14 @@
     </div>
 
     <!-- 子（GAS）を表示する領域 -->
-    <div id="app" class="hidden">
-      <iframe id="gasFrame" title="Misemaru App"
-        allow="fullscreen; clipboard-read; clipboard-write; geolocation; camera; microphone; web-share"></iframe>
-
-      <div id="inlineOverlay" class="">
-        <div class="spinner"></div>
-        <div class="overlay-msg">ページ読み込み中…</div>
-      </div>
+    <div id="app" class="fullscreen">
+      <iframe
+        id="frame"
+        src="https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?page=23_staff_schedule&key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3"
+        style="width:100%; height:100dvh; border:0; display:block;"
+      ></iframe>
     </div>
+
 
     <!-- 🔶 読み込みオーバーレイ -->
     <div id="overlay" class="overlay hidden" aria-hidden="true">
@@ -194,7 +71,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.4</span>
+      <span id="app-version" class="ms-2">v0.5</span>
     </footer>
   </div>
 
@@ -463,5 +340,6 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
