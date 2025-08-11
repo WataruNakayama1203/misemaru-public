@@ -144,6 +144,10 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
+    iframe#frame {
+  touch-action: pan-x pan-y pinch-zoom !important;
+  -webkit-overflow-scrolling: touch;
+}
 </style>
 </head>
 <body>
@@ -190,7 +194,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.3</span>
+      <span id="app-version" class="ms-2">v0.4</span>
     </footer>
   </div>
 
@@ -459,4 +463,5 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
