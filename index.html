@@ -220,10 +220,6 @@
       const u = new URL(location.href);
       return u.searchParams.get("page") || "";
     };
-    const framePage = () => {
-      try { return new URL(frame.src).searchParams.get("page") || ""; }
-      catch { return ""; }
-    };
   
     // ★ indexへ“ハードに戻る”（履歴上書きで前のページを消す）
     function hardResetToIndex() {
@@ -269,103 +265,103 @@
 
 
     function getFrames(){
-  const a = document.getElementById('gasFrame');
-  const b = document.getElementById('gasFrame_spare');
-  const active = a.classList.contains('is-active') ? a : b;
-  const spare  = (active === a) ? b : a;
-  return { active, spare };
-}
-
-// ← これで常に“表示中の方”を見る
-const framePage = () => {
-  try { return new URL(getFrames().active.src).searchParams.get("page") || ""; }
-  catch { return ""; }
-};
-
-function navigateTo(page, push = true) {
-  if (!page) { hardResetToIndex(); return; }
-
-  const current = pageFromLocation();
-  const currentFrame = framePage();
-  if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
-
-  const nextUrl = urlFor(page);
-  navSeq++; const mySeq = navSeq;
-
-  const wasFullscreen = app.classList.contains("fullscreen");
-  let overlayTimer;
-
-  // オーバーレイは遅延（速い遷移なら出さない）
-  if (wasFullscreen) {
-    inlineOverlay?.classList.remove("show");
-    overlayTimer = setTimeout(() => {
-      app.classList.add("loading");
-      inlineOverlay?.classList.add("show");
-    }, 220);
-  } else {
-    overlay?.classList.add("hidden");
-    overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
+    const a = document.getElementById('gasFrame');
+    const b = document.getElementById('gasFrame_spare');
+    const active = a.classList.contains('is-active') ? a : b;
+    const spare  = (active === a) ? b : a;
+    return { active, spare };
   }
-
-  const { active, spare } = getFrames();
-
-  const cleanup = () => {
-    spare.removeEventListener("load", onLoad);
-    spare.removeEventListener("error", onError);
-    clearTimeout(overlayTimer);
-    clearTimeout(timer);
+  
+  // ← これで常に“表示中の方”を見る
+  const framePage = () => {
+    try { return new URL(getFrames().active.src).searchParams.get("page") || ""; }
+    catch { return ""; }
   };
-
-  const swap = () => {
-    spare.classList.add("is-active");
-    active.classList.remove("is-active");
-  };
-
-  const onLoad = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    if (!wasFullscreen) {
-      document.body.classList.add("app-mode");
-      app.classList.remove("hidden");
-      app.classList.add("fullscreen");
+  
+  function navigateTo(page, push = true) {
+    if (!page) { hardResetToIndex(); return; }
+  
+    const current = pageFromLocation();
+    const currentFrame = framePage();
+    if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
+  
+    const nextUrl = urlFor(page);
+    navSeq++; const mySeq = navSeq;
+  
+    const wasFullscreen = app.classList.contains("fullscreen");
+    let overlayTimer;
+  
+    // オーバーレイは遅延（速い遷移なら出さない）
+    if (wasFullscreen) {
+      inlineOverlay?.classList.remove("show");
+      overlayTimer = setTimeout(() => {
+        app.classList.add("loading");
+        inlineOverlay?.classList.add("show");
+      }, 220);
+    } else {
+      overlay?.classList.add("hidden");
+      overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
     }
-    swap();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-  };
-
-  const onError = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-    hardResetToIndex();
-    alert("ページの読み込みに失敗しました。");
-  };
-
-  const timer = setTimeout(() => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-    hardResetToIndex();
-  }, 12000);
-
-  spare.addEventListener("load", onLoad,  { once: true });
-  spare.addEventListener("error", onError,{ once: true });
-
-  // DOMに置いたまま次フレームでsrc切替（白チラ抑止）
-  requestAnimationFrame(() => { spare.src = nextUrl; });
-
-  if (push && current !== page) {
-    const u = new URL(location.href);
-    u.searchParams.set("page", page);
-    history.pushState({ page }, "", u.toString());
+  
+    const { active, spare } = getFrames();
+  
+    const cleanup = () => {
+      spare.removeEventListener("load", onLoad);
+      spare.removeEventListener("error", onError);
+      clearTimeout(overlayTimer);
+      clearTimeout(timer);
+    };
+  
+    const swap = () => {
+      spare.classList.add("is-active");
+      active.classList.remove("is-active");
+    };
+  
+    const onLoad = () => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      if (!wasFullscreen) {
+        document.body.classList.add("app-mode");
+        app.classList.remove("hidden");
+        app.classList.add("fullscreen");
+      }
+      swap();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+    };
+  
+    const onError = () => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+      hardResetToIndex();
+      alert("ページの読み込みに失敗しました。");
+    };
+  
+    const timer = setTimeout(() => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+      hardResetToIndex();
+    }, 12000);
+  
+    spare.addEventListener("load", onLoad,  { once: true });
+    spare.addEventListener("error", onError,{ once: true });
+  
+    // DOMに置いたまま次フレームでsrc切替（白チラ抑止）
+    requestAnimationFrame(() => { spare.src = nextUrl; });
+  
+    if (push && current !== page) {
+      const u = new URL(location.href);
+      u.searchParams.set("page", page);
+      history.pushState({ page }, "", u.toString());
+    }
   }
-}
 
 
 // ========= 設定 =========
@@ -442,5 +438,6 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
