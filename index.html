@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>💈 予約管理システムTOP</title>
+  <title>みせまるクラウド</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <style>
@@ -185,21 +185,11 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2"></span>
+      <span id="app-version" class="ms-2">v0.1</span>
     </footer>
   </div>
 
   <script>
-    // ====== バージョン（手動） ======
-    window.APP_VERSION ="v2025081101";
-
-    (function showVersion(){
-      const el = document.getElementById("app-version");
-      if (!el) return;
-      const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "";
-      if (v) el.textContent = `v${v}`;
-    })();
-    
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
     // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
@@ -247,21 +237,22 @@
       const f1 = document.getElementById('gasFrame');
       if (!f1) return;
     
-      // ラッパー作成して挿し込む
       const stack = document.createElement('div');
       stack.id = 'frame-stack';
+      // 🔑 初期状態は隠しておく（index表示の間は見せない）
+      stack.style.display = 'none';
+    
       f1.parentNode.insertBefore(stack, f1);
       stack.appendChild(f1);
     
-      // 既存をアクティブ面に
       f1.classList.add('frame', 'is-active');
     
-      // 予備面を属性ごと複製（allow/title等を保持）
       const f2 = f1.cloneNode(false);
       f2.id = 'gasFrame_spare';
       f2.classList.remove('is-active');
       stack.appendChild(f2);
     })();
+
 
 
     function getFrames(){
@@ -304,6 +295,7 @@
     }
   
     const { active, spare } = getFrames();
+    const stack = document.getElementById('frame-stack');
   
     const cleanup = () => {
       spare.removeEventListener("load", onLoad);
@@ -320,12 +312,19 @@
     const onLoad = () => {
       if (mySeq !== navSeq) return;
       cleanup();
+  
       if (!wasFullscreen) {
+        // 🔑 初回遷移で初めて iframe レイヤを見せる
+        if (stack) stack.style.display = 'block';
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
       }
-      swap();
+  
+      // クロスフェード
+      spare.classList.add("is-active");
+      active.classList.remove("is-active");
+  
       app.classList.remove("loading");
       inlineOverlay?.classList.remove("show");
       overlay?.classList.add("hidden");
@@ -438,6 +437,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
