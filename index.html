@@ -273,7 +273,7 @@
     catch { return ""; }
   };
   
-  function navigateTo(page, push = true) {
+  function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
     const current = pageFromLocation();
@@ -454,6 +454,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
