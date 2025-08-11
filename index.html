@@ -102,22 +102,18 @@
     
     <!-- 子（GAS）を表示する領域 -->
     <div id="app" class="fullscreen">
-    <div id="frame-stack">
-      <iframe id="frameA" class="frame is-active"
-        src="https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?page=23_staff_schedule&key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3"
-        data-role="content-frame">
-      </iframe>
-      <iframe id="frameB" class="frame"
-        data-role="content-frame">
-      </iframe>
-    </div>
-  
-    <!-- オーバーレイ -->
-    <div id="inlineOverlay" class="hidden">
-      <div class="spinner"></div>
-      <p>読み込み中...</p>
-    </div>
+  <iframe
+    id="frame"
+    src=  "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?page=23_staff_schedule&key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3"
+    allow="clipboard-read; clipboard-write"
+  ></iframe>
+
+  <div id="inlineOverlay" class="hidden">
+    <div class="spinner"></div>
+    <p>読み込み中...</p>
   </div>
+</div>
+
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
@@ -413,6 +409,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
