@@ -176,7 +176,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.7</span>
+      <span id="app-version" class="ms-2">v0.8</span>
     </footer>
   </div>
 
@@ -326,7 +326,7 @@
     frame.addEventListener("error", onError, { once: true });
   
     // ── ここが肝：単一 iframe の src を直接差し替え ──
-    requestAnimationFrame(() => { frame.src = nextUrl; });
+    requestAnimationFrame(() => { setFrameUrlReplace(nextUrl); });
   
     // ── 履歴（親だけ管理・既存方針のまま） ──
     if (push) {
@@ -408,6 +408,17 @@ window.addEventListener("message", (e) => {
   }
 });
 
+    function setFrameUrlReplace(url) {
+      const f = frame; // id="gasFrame"
+      try {
+        if (f && f.contentWindow && f.contentWindow.location) {
+          f.contentWindow.location.replace(url);
+          return;
+        }
+      } catch(_) { /* cross-origin read はNGでも write はOK。read失敗は無視 */ }
+      if (f) f.src = url;
+    }
+
     window.addEventListener("pageshow", (ev) => {
       if (!ev.persisted) return; // bfcacheから戻った時だけ
       const u = new URL(location.href);
@@ -417,7 +428,7 @@ window.addEventListener("message", (e) => {
     
       if (p) {
         // 子を再起動（履歴は触らない）
-        frame.src = urlFor(p, params);
+        setFrameUrlReplace(urlFor(p, params));
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
@@ -441,7 +452,7 @@ window.addEventListener("message", (e) => {
         history.replaceState({ page: p, params }, "", u.toString());
     
         // ★ 子だけ再起動（履歴は増やさない）…URLと表示のねじれ解消（②）
-        frame.src = urlFor(p, params);
+        setFrameUrlReplace(urlFor(p, params));
     
         // 親の見せ方を合わせる
         document.body.classList.add("app-mode");
@@ -462,6 +473,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
