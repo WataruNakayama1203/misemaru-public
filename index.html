@@ -237,21 +237,12 @@
       return u.toString();
     }
 
+  const inlineOverlay = document.getElementById("inlineOverlay");
   
-    const inlineOverlay = document.getElementById("inlineOverlay");
-
-    function getFrames(){
-    const a = document.getElementById('gasFrame');
-    const b = document.getElementById('gasFrame_spare');
-    const active = a.classList.contains('is-active') ? a : b;
-    const spare  = (active === a) ? b : a;
-    return { active, spare };
-  }
-  
-  // ← これで常に“表示中の方”を見る
   const framePage = () => {
-    try { return new URL(getFrames().active.src).searchParams.get("page") || ""; }
-    catch { return ""; }
+    try {
+      return new URL(frame?.src || "", location.origin).searchParams.get("page") || "";
+    } catch { return ""; }
   };
   
   function navigateTo(page, push = true, params = {}) {
@@ -267,7 +258,7 @@
     const wasFullscreen = app.classList.contains("fullscreen");
     let overlayTimer;
   
-    // オーバーレイは遅延（速い遷移なら出さない）
+    // ── オーバーレイ（既存の動き維持） ──
     if (wasFullscreen) {
       inlineOverlay?.classList.remove("show");
       overlayTimer = setTimeout(() => {
@@ -279,36 +270,27 @@
       overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
     }
   
-    const { active, spare } = getFrames();
-    const stack = document.getElementById('frame-stack');
-  
+    // ── 単一 iframe: frame にだけイベント付与 ──
     const cleanup = () => {
-      spare.removeEventListener("load", onLoad);
-      spare.removeEventListener("error", onError);
+      frame.removeEventListener("load", onLoad);
+      frame.removeEventListener("error", onError);
       clearTimeout(overlayTimer);
       clearTimeout(timer);
-    };
-  
-    const swap = () => {
-      spare.classList.add("is-active");
-      active.classList.remove("is-active");
     };
   
     const onLoad = () => {
       if (mySeq !== navSeq) return;
       cleanup();
-    
+  
       if (!wasFullscreen) {
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
         app.classList.add("fullscreen");
       }
-    
       app.classList.remove("loading");
       inlineOverlay?.classList.remove("show");
       overlay?.classList.add("hidden");
     };
-
   
     const onError = () => {
       if (mySeq !== navSeq) return;
@@ -329,12 +311,13 @@
       hardResetToIndex();
     }, 12000);
   
-    spare.addEventListener("load", onLoad,  { once: true });
-    spare.addEventListener("error", onError,{ once: true });
+    frame.addEventListener("load",  onLoad,  { once: true });
+    frame.addEventListener("error", onError, { once: true });
   
-    // DOMに置いたまま次フレームでsrc切替（白チラ抑止）
-    requestAnimationFrame(() => { spare.src = nextUrl; });
+    // ── ここが肝：単一 iframe の src を直接差し替え ──
+    requestAnimationFrame(() => { frame.src = nextUrl; });
   
+    // ── 履歴（親だけ管理・既存方針のまま） ──
     if (push) {
       const u = new URL(location.href);
       u.searchParams.set("page", page);
@@ -345,8 +328,7 @@
       history.pushState({ page, params }, "", u.toString());
     }
   }
-
-
+    
 // ========= 設定 =========
 // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
 const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
@@ -417,20 +399,22 @@ window.addEventListener("message", (e) => {
     window.addEventListener("popstate", () => {
       const u = new URL(location.href);
       const p = u.searchParams.get("page");
-      if (p) {
-        const params = {};
-        u.searchParams.forEach((v, k) => { if (k !== "page") params[k] = v; });
-        navigateTo(p, false, params);
-      } else {
-        hardResetToIndex();
-      }
+      const params = {};
+      u.searchParams.forEach((v, k) => { if (k !== "page") params[k] = v; });
+    
+      requestAnimationFrame(() => {
+        if (p) navigateTo(p, false, params);
+        else    hardResetToIndex();
+      });
     });
+
 
   </script>
 
 
 </body>
 </html>
+
 
 
 
