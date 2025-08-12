@@ -190,6 +190,19 @@
       // 絶対パス化 + ハッシュも消す派なら u.hash = "";
       return u.origin + u.pathname;           // 末尾スラなし/ありはどちらでもOK
     })();
+
+     window.addEventListener('DOMContentLoaded', () => {
+      const u = new URL(location.href);
+      const p = u.searchParams.get('page');
+      if (!p) return;
+  
+      // page 以外のパラメータも子に引き継ぐ
+      const params = {};
+      u.searchParams.forEach((v, k) => { if (k !== 'page') params[k] = v; });
+  
+      // push=false で履歴を増やさず、今のURLのまま起動
+      navigateTo(p, false, params);
+    });
   
     const frame   = document.getElementById("gasFrame");
     const app     = document.getElementById("app");
@@ -417,6 +430,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
