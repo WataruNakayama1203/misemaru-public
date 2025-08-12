@@ -181,255 +181,114 @@
   </div>
 
   <script>
-    const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
+  /* ===== 設定 ===== */
+  const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
+  const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
+  const ALLOWED_ORIGINS = ["https://script.google.com"]; // + *.googleusercontent.com 許可
   
-    // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
-    const BASE_URL = (() => {
-      const u = new URL(location.href);
-      u.searchParams.delete("page");
-      // 絶対パス化 + ハッシュも消す派なら u.hash = "";
-      return u.origin + u.pathname;           // 末尾スラなし/ありはどちらでもOK
-    })();
-
-     window.addEventListener('DOMContentLoaded', () => {
-      const u = new URL(location.href);
-      const p = u.searchParams.get('page');
-      if (!p) return;
-  
-      // page 以外のパラメータも子に引き継ぐ
-      const params = {};
-      u.searchParams.forEach((v, k) => { if (k !== 'page') params[k] = v; });
-  
-      // push=false で履歴を増やさず、今のURLのまま起動
-      navigateTo(p, false, params);
-    });
-  
-    const frame   = document.getElementById("gasFrame");
-    const app     = document.getElementById("app");
-    const overlay = document.getElementById("overlay"); // あれば使う
-  
-    let navSeq = 0;
-  
-    const pageFromLocation = () => {
-      const u = new URL(location.href);
-      return u.searchParams.get("page") || "";
-    };
-  
-    // ★ indexへ“ハードに戻る”（履歴上書きで前のページを消す）
-    function hardResetToIndex() {
-      // 見た目を先にindex状態へ
-      document.body.classList.remove("app-mode");
-      app.classList.add("hidden");
-      app.classList.remove("fullscreen");
-      frame.classList.add("invisible");
-      if (overlay) overlay.classList.add("hidden");
-  
-      // 履歴を「indexで置き換え」→ forwardスタックも消える
-      location.replace(BASE_URL);
-    }
-
-    function urlFor(page, params = {}) {
-      const u = new URL(GAS_BASE);
-      u.searchParams.set("page", page);
-      for (const [k, v] of Object.entries(params)) {
-        if (v != null && v !== "") u.searchParams.set(k, String(v));
-      }
-      return u.toString();
-    }
-
-  
-    const inlineOverlay = document.getElementById("inlineOverlay");
-
-    function getFrames(){
-    const a = document.getElementById('gasFrame');
-    const b = document.getElementById('gasFrame_spare');
-    const active = a.classList.contains('is-active') ? a : b;
-    const spare  = (active === a) ? b : a;
-    return { active, spare };
-  }
-  
-  // ← これで常に“表示中の方”を見る
-  const framePage = () => {
-    try { return new URL(getFrames().active.src).searchParams.get("page") || ""; }
-    catch { return ""; }
+  /* ===== ユーティリティ ===== */
+  const $ = (s)=>document.querySelector(s);
+  const readUrl = () => {
+    const u=new URL(location.href), p=u.searchParams.get("page")||"", params={};
+    u.searchParams.forEach((v,k)=>{ if(k!=="page") params[k]=v; });
+    return {page:p, params};
+  };
+  const buildParentUrl = (page, params={})=>{
+    const u=new URL(location.href); u.search=""; u.hash="";
+    u.searchParams.set("page", page);
+    for (const [k,v] of Object.entries(params)) if(v!=null&&v!=="") u.searchParams.set(k,String(v));
+    return u.pathname + u.search;
+  };
+  const buildChildUrl = (page, params={})=>{
+    const u=new URL(GAS_BASE); u.searchParams.set("page", page);
+    for (const [k,v] of Object.entries(params)) if(v!=null&&v!=="") u.searchParams.set(k,String(v));
+    return u.toString();
   };
   
-  function navigateTo(page, push = true, params = {}) {
-    if (!page) { hardResetToIndex(); return; }
+  /* ===== 子の描画（履歴は触らない） ===== */
+  function bootChild(page, params={}){
+    const f = $("#gasFrame"); if (!f) return;
+    const next = buildChildUrl(page, params);
+    if (f.src !== next) f.src = next;
+  }
   
-    const current = pageFromLocation();
-    const currentFrame = framePage();
-    if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
+  /* ===== 親だけが履歴更新 ===== */
+  function navigateTo(page, push=true, params={}){
+    if(!page){ closeToIndex(); return; }
+    bootChild(page, params);
+    const next = buildParentUrl(page, params);
+    if (next !== location.pathname + location.search) {
+      const st = {page, params};
+      push ? history.pushState(st,"",next) : history.replaceState(st,"",next);
+    }
+  }
   
-    const nextUrl = urlFor(page, params);
-    navSeq++; const mySeq = navSeq;
-  
-    const wasFullscreen = app.classList.contains("fullscreen");
-    let overlayTimer;
-  
-    // オーバーレイは遅延（速い遷移なら出さない）
-    if (wasFullscreen) {
-      inlineOverlay?.classList.remove("show");
-      overlayTimer = setTimeout(() => {
-        app.classList.add("loading");
-        inlineOverlay?.classList.add("show");
-      }, 220);
+  /* ===== 初期化（1回戻るで戻れるよう最初は replace） ===== */
+  (function init(){
+    const {page, params} = readUrl();
+    if (page){
+      history.replaceState({page,params},"",buildParentUrl(page,params));
+      window.addEventListener("DOMContentLoaded", ()=>bootChild(page, params), {once:true});
     } else {
-      overlay?.classList.add("hidden");
-      overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
+      history.replaceState(null,"",location.pathname);
     }
+  })();
   
-    const { active, spare } = getFrames();
-    const stack = document.getElementById('frame-stack');
-  
-    const cleanup = () => {
-      spare.removeEventListener("load", onLoad);
-      spare.removeEventListener("error", onError);
-      clearTimeout(overlayTimer);
-      clearTimeout(timer);
-    };
-  
-    const swap = () => {
-      spare.classList.add("is-active");
-      active.classList.remove("is-active");
-    };
-  
-    const onLoad = () => {
-      if (mySeq !== navSeq) return;
-      cleanup();
-    
-      if (!wasFullscreen) {
-        document.body.classList.add("app-mode");
-        app.classList.remove("hidden");
-        app.classList.add("fullscreen");
-      }
-    
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
-    };
-
-  
-    const onError = () => {
-      if (mySeq !== navSeq) return;
-      cleanup();
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
-      hardResetToIndex();
-      alert("ページの読み込みに失敗しました。");
-    };
-  
-    const timer = setTimeout(() => {
-      if (mySeq !== navSeq) return;
-      cleanup();
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
-      hardResetToIndex();
-    }, 12000);
-  
-    spare.addEventListener("load", onLoad,  { once: true });
-    spare.addEventListener("error", onError,{ once: true });
-  
-    // DOMに置いたまま次フレームでsrc切替（白チラ抑止）
-    requestAnimationFrame(() => { spare.src = nextUrl; });
-  
-    if (push) {
-      const u = new URL(location.href);
-      u.searchParams.set("page", page);
-      for (const [k, v] of Object.entries(params)) {
-        if (v != null && v !== "") u.searchParams.set(k, String(v));
-        else u.searchParams.delete(k);
-      }
-      history.pushState({ page, params }, "", u.toString());
-    }
-  }
-
-
-// ========= 設定 =========
-// テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
-const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
-
-// 受け付ける送信元
-const ALLOWED_ORIGINS = [
-  "https://script.google.com", // 固定
-  // *.googleusercontent.com は endsWith で許可するのでここは不要
-];
-function isAllowedOrigin(origin) {
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (origin.endsWith(".googleusercontent.com")) return true;
-  return false;
-}
-
-// ========= 子(GAS) → 親ナビ =========
-window.addEventListener("message", (e) => {
-  const d = e.data || {};
-  if (!isAllowedOrigin(e.origin)) return;
-
-  // ◀ ACK（任意）
-  try {
-    if (e.source && typeof e.source.postMessage === "function" && d.id) {
-      e.source.postMessage({ type: "misemaru:ack", id: d.id }, e.origin);
-    }
-  } catch (err) {}
-
-  // ▶ ルーティング
-  if (d.type === "misemaru:navigate") {
-    // ★ push/replaceとparamsをサポート
-    const push = d.replace ? false : true;
-    const params = (d.params && typeof d.params === "object") ? d.params : {};
-
-    if (typeof d.page === "string" && d.page) {
-      // ★ params付きで親のnavigateToへ
-      navigateTo(d.page, push, params);
-      return;
-    }
-
-    if (typeof d.url === "string" && d.url) {
-      // ★ URLからpageとparamsを抽出して渡す
-      const u = new URL(d.url, location.origin);
-      const page = u.searchParams.get("page") || "";
-      if (page) {
-        const p = {};
-        for (const [k, v] of u.searchParams.entries()) {
-          if (k !== "page") p[k] = v;
-        }
-        navigateTo(page, push, p);
-      }
-      return;
-    }
-    return;
-  }
-
-  if (d.type === "misemaru:close") {
-    if (HOME_URL) {
-      location.href = HOME_URL;
+  /* ===== 戻る/進む ===== */
+  window.addEventListener("popstate",(e)=>{
+    const st=e.state;
+    if (st?.page){ bootChild(st.page, st.params||{}); return; }
+    const {page, params} = readUrl();
+    if (page){
+      history.replaceState({page,params},"",buildParentUrl(page,params));
+      bootChild(page, params);
     } else {
-      hardResetToIndex();
+      // 親トップUIへ（必要ならUI表示処理）
     }
-    return;
+  });
+  
+  /* ===== 子→親（postMessage） ===== */
+  function isAllowedOrigin(origin){
+    if (ALLOWED_ORIGINS.includes(origin)) return true;
+    return origin.endsWith(".googleusercontent.com");
   }
-});
-
-
-    // 戻る/進む
-    window.addEventListener("popstate", () => {
-      const u = new URL(location.href);
-      const p = u.searchParams.get("page");
-      if (p) {
-        const params = {};
-        u.searchParams.forEach((v, k) => { if (k !== "page") params[k] = v; });
-        navigateTo(p, false, params);
-      } else {
-        hardResetToIndex();
+  window.addEventListener("message",(e)=>{
+    if(!isAllowedOrigin(e.origin)) return;
+    const d=e.data||{};
+    try{ if(e.source?.postMessage && d.id){ e.source.postMessage({type:"misemaru:ack",id:d.id}, e.origin); } }catch{}
+  
+    if(d.type==="misemaru:navigate"){
+      const push = d.replace ? false : true;
+      if (d.page) return navigateTo(d.page, push, d.params||{});
+      if (d.url){
+        const u=new URL(d.url, location.origin), p=u.searchParams.get("page");
+        if(!p) return;
+        const params={}; u.searchParams.forEach((v,k)=>{ if(k!=="page") params[k]=v; });
+        return navigateTo(p, push, params);
       }
-    });
-
+    }
+    if(d.type==="misemaru:reload"){ const st=history.state; if(st?.page) bootChild(st.page, st.params||{}); }
+    if(d.type==="misemaru:close"){ closeToIndex(); }
+  });
+  
+  /* ===== bfcache復帰（iOS/Safari） ===== */
+  window.addEventListener("pageshow",(ev)=>{
+    if(!ev.persisted) return;
+    const st=history.state; if(st?.page) bootChild(st.page, st.params||{});
+  });
+  
+  /* ===== 便利関数 ===== */
+  function closeToIndex(){ location.href = HOME_URL || location.pathname; }
+  function reloadChild(){ const st=history.state; if(st?.page) bootChild(st.page, st.params||{}); }
+  
+  /* 必要ならグローバル公開 */
+  window.misemaruNav = { navigateTo, reloadChild, closeToIndex };
   </script>
+
 
 </body>
 </html>
+
 
 
 
