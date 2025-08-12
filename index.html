@@ -176,7 +176,7 @@
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
-      <span id="app-version" class="ms-2">v0.6</span>
+      <span id="app-version" class="ms-2">v0.7</span>
     </footer>
   </div>
 
@@ -199,6 +199,8 @@
       // page 以外のパラメータも子に引き継ぐ
       const params = {};
       u.searchParams.forEach((v, k) => { if (k !== 'page') params[k] = v; });
+
+      history.replaceState({ page: p, params }, "", u.toString());
   
       // push=false で履歴を増やさず、今のURLのまま起動
       navigateTo(p, false, params);
@@ -214,6 +216,15 @@
       const u = new URL(location.href);
       return u.searchParams.get("page") || "";
     };
+
+    function showParentUI() {
+      // 親UIを見せる。URLや履歴はいじらない
+      document.body.classList.remove("app-mode");
+      app.classList.remove("loading", "fullscreen");
+      app.classList.add("hidden");
+      overlay?.classList.add("hidden");
+      inlineOverlay?.classList.remove("show");
+    }
   
     // ★ indexへ“ハードに戻る”（履歴上書きで前のページを消す）
     function hardResetToIndex() {
@@ -328,6 +339,9 @@
       history.pushState({ page, params }, "", u.toString());
     }
   }
+
+    
+    
     
 // ========= 設定 =========
 // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
@@ -394,6 +408,26 @@ window.addEventListener("message", (e) => {
   }
 });
 
+    window.addEventListener("pageshow", (ev) => {
+      if (!ev.persisted) return; // bfcacheから戻った時だけ
+      const u = new URL(location.href);
+      const p = u.searchParams.get("page");
+      const params = {};
+      u.searchParams.forEach((v, k) => { if (k !== "page") params[k] = v; });
+    
+      if (p) {
+        // 子を再起動（履歴は触らない）
+        frame.src = urlFor(p, params);
+        document.body.classList.add("app-mode");
+        app.classList.remove("hidden");
+        app.classList.add("fullscreen");
+        overlay?.classList.add("hidden");
+        inlineOverlay?.classList.remove("show");
+      } else {
+        showParentUI();
+      }
+    });
+
 
     // 戻る/進む
     window.addEventListener("popstate", () => {
@@ -402,11 +436,25 @@ window.addEventListener("message", (e) => {
       const params = {};
       u.searchParams.forEach((v, k) => { if (k !== "page") params[k] = v; });
     
-      requestAnimationFrame(() => {
-        if (p) navigateTo(p, false, params);
-        else    hardResetToIndex();
-      });
+      // ★ URLを“真実”として state を正規化（URLは変えない）
+      if (p) {
+        history.replaceState({ page: p, params }, "", u.toString());
+    
+        // ★ 子だけ再起動（履歴は増やさない）…URLと表示のねじれ解消（②）
+        frame.src = urlFor(p, params);
+    
+        // 親の見せ方を合わせる
+        document.body.classList.add("app-mode");
+        app.classList.remove("hidden");
+        app.classList.add("fullscreen");
+        overlay?.classList.add("hidden");
+        inlineOverlay?.classList.remove("show");
+      } else {
+        // ?page= 無し＝親トップを表示（リロードはしない）（③の青画面防止）
+        showParentUI();
+      }
     });
+
 
 
   </script>
@@ -414,6 +462,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
