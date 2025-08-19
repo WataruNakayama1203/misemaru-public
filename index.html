@@ -399,8 +399,21 @@
     if (mySeq !== navSeq) return;
     cleanup();
 
+    // frame.onload 内
     const email = localStorage.getItem("userEmail");
-    const childOrigin = new URL(frame.src).origin; // ← ここが重要！
+    
+    // iframeの最終的なオリジンを取得する
+    const childOrigin = new URL(frame.src).origin; 
+    
+    // そのオリジンがGASの特定のURLであることを確認
+    if (childOrigin.startsWith("https://script.google.com") || childOrigin.startsWith("https://script.googleusercontent.com")) {
+      try {
+        frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
+        console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
+      } catch (err) {
+        console.error("[PARENT] postMessage失敗:", err);
+      }
+    }
 
     console.log("[PARENT] iframe load 完了:", nextUrl, " email=", email, " origin=", childOrigin);
     if (email) {
@@ -597,6 +610,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
