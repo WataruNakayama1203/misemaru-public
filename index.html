@@ -384,7 +384,7 @@
     if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
   
     const nextUrl = urlFor(page, params);
-    navSeq++; 
+    navSeq++;
     const mySeq = navSeq;
   
     const wasFullscreen = app.classList.contains("fullscreen");
@@ -408,46 +408,31 @@
       clearTimeout(timer);
     };
   
+    // 子から origin が届いたら保存
+    let childOrigin = "";
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "child-ready") {
+        childOrigin = event.data.origin;
+        console.log("[PARENT] child-ready 受信, origin=", childOrigin);
+  
+        // email を送信
+        const email = localStorage.getItem("userEmail");
+        if (email) {
+          try {
+            frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
+            console.log("[PARENT] email送信:", email, "→", childOrigin);
+          } catch (err) {
+            console.error("[PARENT] email送信失敗:", err);
+          }
+        }
+      }
+    });
+  
     const onLoad = () => {
       if (mySeq !== navSeq) return;
       cleanup();
-  
       const email = localStorage.getItem("userEmail");
-      console.log("[PARENT] iframe load 完了: email=", email, " origin=", childOrigin);
-  
-      if (email && childOrigin) {
-        try {
-          frame.contentWindow.postMessage(
-            { type: "misemaru:email", email },
-            childOrigin
-          );
-          console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
-        } catch (err) {
-          console.error("[PARENT] postMessage失敗:", err);
-        }
-  
-        // fallback: 2秒後に再送
-        setTimeout(() => {
-          try {
-            frame.contentWindow.postMessage(
-              { type: "misemaru:email", email },
-              childOrigin
-            );
-            console.log("[PARENT] 再送postMessage:", email, "→", childOrigin);
-          } catch (err) {
-            console.error("[PARENT] 再送postMessage失敗:", err);
-          }
-        }, 2000);
-      }
-  
-      if (!wasFullscreen) {
-        document.body.classList.add("app-mode");
-        app.classList.remove("hidden");
-        app.classList.add("fullscreen");
-      }
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
+      console.log("[PARENT] iframe load 完了, email=", email);
     };
   
     const onError = () => {
@@ -490,6 +475,7 @@
       history.pushState({ page, params }, "", u.toString());
     }
   }
+
 
  
 // ========= 設定 =========
@@ -626,6 +612,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
