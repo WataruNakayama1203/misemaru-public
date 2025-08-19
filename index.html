@@ -400,17 +400,37 @@
     if (mySeq !== navSeq) return;
     cleanup();
   
-    const email = localStorage.getItem("userEmail");
-  
-    // ← frame.src が空になるので、nextUrl から origin を取る
-    let childOrigin = "";
-    try {
-      childOrigin = new URL(nextUrl, location.href).origin;
-      console.log("[PARENT] childOrigin from nextUrl =", childOrigin);
-    } catch (err) {
-      console.error("[PARENT] childOrigin取得失敗:", nextUrl, err);
-      return;
-    }
+    setTimeout(() => {
+      const email = localStorage.getItem("userEmail");
+      if (email) {
+        let origin = "";
+        try {
+          // nextUrl を fallback に利用する
+          origin = frame.src ? new URL(frame.src, location.href).origin
+                             : new URL(nextUrl, location.href).origin;
+        } catch (err) {
+          console.error("[PARENT] origin取得失敗:", frame.src, err);
+          return;
+        }
+    
+        const allowedOrigins = [
+          "https://script.google.com",
+          "https://script.googleusercontent.com"
+        ];
+    
+        if (allowedOrigins.some(o => origin.startsWith(o))) {
+          try {
+            frame.contentWindow.postMessage({ type: "misemaru:email", email }, origin);
+            console.log("[PARENT] fallback postMessage:", email, "→", origin);
+          } catch (err) {
+            console.error("[PARENT] fallback postMessage失敗:", err);
+          }
+        } else {
+          console.warn("[PARENT] iframe オリジン不明:", origin);
+        }
+      }
+    }, 2000);
+
   
     console.log("[PARENT] iframe load 完了: email=", email, " origin=", childOrigin);
   
@@ -636,6 +656,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
