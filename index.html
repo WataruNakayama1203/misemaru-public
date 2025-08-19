@@ -131,32 +131,23 @@
     border: 0;
     display: block;
   }
-  /* ボタン台座を先に確保 → レイアウトシフト防止 */
-#google-login-anchor {
-  width: 240px;
-  height: 40px;
-  display: inline-block;
-  opacity: 0; /* 最初は非表示 */
-  transition: opacity .15s ease; /* フェードイン */
-}
-
-/* レンダ後に付与するクラス */
-#google-login-anchor.gsi-ready {
-  opacity: 1;
-}
-
-
 </style>
 </head>
 <body>
-  <!-- Google Sign-In ボタン用ラッパ -->
-  <header class="site-header">
-    <div class="header-inner">
-      <!-- Google Sign-In ボタン用台座 -->
-      <div id="google-login-anchor" aria-label="Google Sign-In"></div>
-    </div>
-  </header>
-
+  <div id="g_id_onload"
+       data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+       data-context="signin"
+       data-callback="onSignIn"
+       data-auto_prompt="false">
+  </div>
+  <div class="g_id_signin"
+       data-type="standard"
+       data-shape="rectangular"
+       data-theme="outline"
+       data-text="signin_with"
+       data-size="large"
+       data-logo_alignment="left">
+  </div>
   <div id="wrap" class="container container-narrow py-0">
     <!-- ヘッダー（親UI） -->
     <div class="hero">
@@ -252,9 +243,8 @@
     }
   
     function showLoginPrompt() {
-    document.getElementById("main").innerHTML = `
-      <p class="text-center mt-4">Googleアカウントでログインしてください</p>
-      <div id="gsi-wrapper">
+      document.getElementById("main").innerHTML = `
+        <p class="text-center mt-4">Googleアカウントでログインしてください</p>
         <div id="g_id_onload"
              data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
              data-context="signin"
@@ -269,15 +259,8 @@
              data-size="large"
              data-logo_alignment="left">
         </div>
-      </div>
-    `;
-  
-    // レンダリング終わったらフェードイン
-    setTimeout(() => {
-      document.getElementById("gsi-wrapper")?.classList.add("gsi-ready");
-    }, 150);
-  }
-
+      `;
+    }
     
     function showForbidden() {
       document.getElementById("main").innerHTML = `
@@ -576,23 +559,3 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
