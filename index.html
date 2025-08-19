@@ -364,88 +364,102 @@
   };
   
   function navigateTo(page, push = true, params = {}) {
-    if (!page) { hardResetToIndex(); return; }
-  
-    const current = pageFromLocation();
-    const currentFrame = framePage();
-    if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
-  
-    const nextUrl = urlFor(page, params);
-    navSeq++; const mySeq = navSeq;
-  
-    const wasFullscreen = app.classList.contains("fullscreen");
-    let overlayTimer;
-  
-    // ── オーバーレイ（既存の動き維持） ──
-    if (wasFullscreen) {
-      inlineOverlay?.classList.remove("show");
-      overlayTimer = setTimeout(() => {
-        app.classList.add("loading");
-        inlineOverlay?.classList.add("show");
-      }, 220);
-    } else {
-      overlay?.classList.add("hidden");
-      overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
-    }
-  
-    // ── 単一 iframe: frame にだけイベント付与 ──
-    const cleanup = () => {
-      frame.removeEventListener("load", onLoad);
-      frame.removeEventListener("error", onError);
-      clearTimeout(overlayTimer);
-      clearTimeout(timer);
-    };
-  
-    const onLoad = () => {
-      if (mySeq !== navSeq) return;
-      cleanup();
-  
-      if (!wasFullscreen) {
-        document.body.classList.add("app-mode");
-        app.classList.remove("hidden");
-        app.classList.add("fullscreen");
-      }
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
-    };
-  
-    const onError = () => {
-      if (mySeq !== navSeq) return;
-      cleanup();
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
-      hardResetToIndex();
-      alert("ページの読み込みに失敗しました。");
-    };
-  
-    const timer = setTimeout(() => {
-      if (mySeq !== navSeq) return;
-      cleanup();
-      app.classList.remove("loading");
-      inlineOverlay?.classList.remove("show");
-      overlay?.classList.add("hidden");
-      hardResetToIndex();
-    }, 12000);
-  
-    frame.addEventListener("load",  onLoad,  { once: true });
-    frame.addEventListener("error", onError, { once: true });
-  
-    // ── ここが肝：単一 iframe の src を直接差し替え ──
-    requestAnimationFrame(() => { setFrameUrlReplace(nextUrl); });
-  
-    // ── 履歴（親だけ管理・既存方針のまま） ──
-    if (push) {
-      const u = new URL(location.href);
-      u.searchParams.set("page", page);
-      for (const [k, v] of Object.entries(params)) {
-        if (v != null && v !== "") u.searchParams.set(k, String(v));
-        else u.searchParams.delete(k);
-      }
-      history.pushState({ page, params }, "", u.toString());
-    }
+  if (!page) { 
+    hardResetToIndex(); 
+    return; 
   }
+
+  const current = pageFromLocation();
+  const currentFrame = framePage();
+  if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
+
+  // ★ ここでログイン済みのメールを追加する
+  const email = localStorage.getItem("userEmail");
+  if (email) {
+    params.email = email;
+  }
+
+  const nextUrl = urlFor(page, params);
+  navSeq++; 
+  const mySeq = navSeq;
+
+  const wasFullscreen = app.classList.contains("fullscreen");
+  let overlayTimer;
+
+  // ── オーバーレイ（既存の動き維持） ──
+  if (wasFullscreen) {
+    inlineOverlay?.classList.remove("show");
+    overlayTimer = setTimeout(() => {
+      app.classList.add("loading");
+      inlineOverlay?.classList.add("show");
+    }, 220);
+  } else {
+    overlay?.classList.add("hidden");
+    overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
+  }
+
+  // ── 単一 iframe: frame にだけイベント付与 ──
+  const cleanup = () => {
+    frame.removeEventListener("load", onLoad);
+    frame.removeEventListener("error", onError);
+    clearTimeout(overlayTimer);
+    clearTimeout(timer);
+  };
+
+  const onLoad = () => {
+    if (mySeq !== navSeq) return;
+    cleanup();
+
+    if (!wasFullscreen) {
+      document.body.classList.add("app-mode");
+      app.classList.remove("hidden");
+      app.classList.add("fullscreen");
+    }
+    app.classList.remove("loading");
+    inlineOverlay?.classList.remove("show");
+    overlay?.classList.add("hidden");
+  };
+
+  const onError = () => {
+    if (mySeq !== navSeq) return;
+    cleanup();
+    app.classList.remove("loading");
+    inlineOverlay?.classList.remove("show");
+    overlay?.classList.add("hidden");
+    hardResetToIndex();
+    alert("ページの読み込みに失敗しました。");
+  };
+
+  const timer = setTimeout(() => {
+    if (mySeq !== navSeq) return;
+    cleanup();
+    app.classList.remove("loading");
+    inlineOverlay?.classList.remove("show");
+    overlay?.classList.add("hidden");
+    hardResetToIndex();
+  }, 12000);
+
+  frame.addEventListener("load",  onLoad,  { once: true });
+  frame.addEventListener("error", onError, { once: true });
+
+  // ── ここが肝：iframe の src を差し替え ──
+  requestAnimationFrame(() => { setFrameUrlReplace(nextUrl); });
+
+  // ── 履歴（親だけ管理・既存方針のまま） ──
+  if (push) {
+    const u = new URL(location.href);
+    u.searchParams.set("page", page);
+    for (const [k, v] of Object.entries(params)) {
+      if (v != null && v !== "") {
+        u.searchParams.set(k, String(v));
+      } else {
+        u.searchParams.delete(k);
+      }
+    }
+    history.pushState({ page, params }, "", u.toString());
+  }
+}
+
 
     
     
@@ -577,4 +591,5 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
