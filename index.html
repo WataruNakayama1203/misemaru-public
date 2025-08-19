@@ -135,7 +135,7 @@
   #google-login-container {
     display: inline-block;
     margin: 0.5rem;
-    position: absolute; /*
+    position: absolute;
     top: 0.5rem;
     right: 0.5rem;
   }
@@ -144,6 +144,13 @@
   #google-login-container .g_id_signin {
     min-width: 200px; /* 好きな幅に調整 */
     max-width: 250px;
+  }
+  #google-login-container {
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  #google-login-container.gsi-ready {
+    opacity: 1;
   }
 
 </style>
@@ -578,4 +585,5 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
