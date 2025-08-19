@@ -213,69 +213,81 @@
   </div>
 
   <script>
-    let userEmail = localStorage.getItem("userEmail") || null;
-
-  // Google Sign-In 成功時の処理
-  function onSignIn(response) {
-    const credential = response.credential;
-    const payload = JSON.parse(atob(credential.split(".")[1]));
-    const email = payload.email;
-
-    // 保存
-    window.userEmail = email;
-    localStorage.setItem("userEmail", email);
-
-    console.log("✅ Logged in as:", email);
-    routeAfterLogin();
-  }
-
-  // ログイン状態でページ開いたときの処理
-  async function routeAfterLogin() {
-  if (!userEmail) {
-    showLoginPrompt();
-    return;
-  }
-
-  console.log("♻️ routeAfterLogin with:", userEmail);
-
-  try {
-    const resp = await fetch(
-      GAS_BASE + "&action=checkRole&email=" + encodeURIComponent(userEmail)
-    );
-    const role = await resp.text(); // 返り値は "admin" / "staff" / "customer" / "forbidden"
-
-    if (role === "admin") {
-      goTo("10_availability_admin");
-    } else if (role === "staff") {
-      goTo("20_staff_main");
-    } else if (role === "customer") {
-      goTo("10_availability_customer");
-    } else {
-      showForbidden();
-    }
-  } catch (err) {
-    console.error("❌ role check failed:", err);
-    showForbidden();
-  }
-}
-
-
-  // 権限なし
-  function showForbidden() {
-    document.body.innerHTML = `
-      <p class="text-center mt-4 text-danger">権限がありません</p>
-    `;
-  }
-
-  // ページ読み込み時：ログイン済みか判定
-  window.addEventListener("DOMContentLoaded", () => {
-    if (userEmail) {
-      console.log("♻️ 既存ログイン:", userEmail);
+    let userEmail = null;
+  /*
+    function onSignIn(response) {
+      const credential = response.credential;
+      const payload = JSON.parse(atob(credential.split(".")[1]));
+      userEmail = payload.email;
+      console.log("✅ Logged in as:", userEmail);
+  
+      // ログイン後の画面制御
       routeAfterLogin();
-    } else {
-      console.log("👋 ログインしてません。ボタン表示だけ");
     }
-  });
+    */
+
+    function onSignIn(response) {
+      const credential = response.credential;
+      const payload = JSON.parse(atob(credential.split(".")[1]));
+      const email = payload.email;
+    
+      window.userEmail = email;
+      localStorage.setItem("userEmail", email); // 次回も使える
+      console.log("✅ Logged in as:", email);
+    
+      routeAfterLogin();
+    }
+    
+    function routeAfterLogin() {
+      const email = window.userEmail || localStorage.getItem("userEmail");
+      if (!email) {
+        showLoginPrompt();
+        return;
+      }
+    
+      // GAS に問い合わせ
+      google.script.run
+        .withSuccessHandler(role => {
+          console.log("🎭 Role from GAS:", role);
+          const pageName = (new URL(location.href)).searchParams.get("page") || "";
+    
+          if (role === "admin" && pageName.endsWith("_admin")) {
+            // admin専用ページOK
+          } else if ((role === "admin" || role === "staff") && pageName.endsWith("_staff")) {
+            // staffページOK
+          } else {
+            showForbidden();
+          }
+        })
+        .checkRole(email);
+    }
+
+  
+    function showLoginPrompt() {
+      document.getElementById("main").innerHTML = `
+        <p class="text-center mt-4">Googleアカウントでログインしてください</p>
+        <div id="g_id_onload"
+             data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+             data-context="signin"
+             data-callback="onSignIn"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="signin_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+      `;
+    }
+    
+    function showForbidden() {
+      document.getElementById("main").innerHTML = `
+        <p class="text-center mt-4 text-danger">権限がありません</p>
+      `;
+    }
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
     // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
@@ -560,19 +572,9 @@ window.addEventListener("message", (e) => {
         showParentUI();
       }
     });
-
-
-
   </script>
 
 
 </body>
 </html>
-
-
-
-
-
-
-
 
