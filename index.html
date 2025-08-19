@@ -439,7 +439,15 @@
       hardResetToIndex();
     }, 12000);
   
-    frame.addEventListener("load",  onLoad,  { once: true });
+    frame.addEventListener("load", () => {
+      const email = localStorage.getItem("userEmail");
+      console.log("[PARENT] iframe load, email=", email);
+      if (email) {
+        frame.contentWindow.postMessage({ type: "EMAIL", email }, "*");
+        console.log("[PARENT] postMessage送信:", email);
+      }
+    }, { once: true });
+
     frame.addEventListener("error", onError, { once: true });
   
     // ── ここが肝：iframe の src を差し替え ──
@@ -587,6 +595,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
