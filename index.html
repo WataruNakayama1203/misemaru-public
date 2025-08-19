@@ -446,14 +446,24 @@
     hardResetToIndex();
   }, 12000);
 
-  // 👇 load/error のリスナーを先に登録してから src を切り替える
+  // load が拾えない時の fallback 追加
   frame.addEventListener("load", onLoad, { once: true });
   frame.addEventListener("error", onError, { once: true });
-
+  
   requestAnimationFrame(() => {
     console.log("[PARENT] setFrameUrlReplace 実行:", nextUrl);
     setFrameUrlReplace(nextUrl);
   });
+  
+  // fallback: 2秒後に強制 postMessage
+  setTimeout(() => {
+    const email = localStorage.getItem("userEmail");
+    if (email) {
+      frame.contentWindow.postMessage({ type: "misemaru:email", email }, "https://script.googleusercontent.com");
+      console.log("[PARENT] fallback postMessage:", email);
+    }
+  }, 2000);
+
 
   if (push) {
     const u = new URL(location.href);
@@ -603,6 +613,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
