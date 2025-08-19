@@ -397,41 +397,35 @@
   };
 
   const onLoad = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
+    if (mySeq !== navSeq) return;
+    cleanup();
+    
+    const email = localStorage.getItem("userEmail") || "";
+    console.log("[PARENT] iframe load 完了: email=", email);
 
-    const email = localStorage.getItem("userEmail") || "";
-    console.log("[PARENT] iframe load 完了: email=", email);
+    if (email) {
+      try {
+        // postMessage は必ず "*" をターゲットにする
+        frame.contentWindow.postMessage({ type: "misemaru:email", email }, "*");
+        console.log("[PARENT] postMessage送信:", email, "→ *");
+      } catch (err) {
+        console.error("[PARENT] postMessage失敗:", err);
+      }
+    } else {
+      console.warn("[PARENT] userEmail が localStorage に存在しません");
+    }
 
-    if (email) {
-        try {
-            // iframeの最終的なオリジンを正確に取得する
-            const childOrigin = new URL(frame.src).origin;
-            
-            // postMessageのターゲットに、取得したオリジンを設定
-            frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
-            
-            console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
-        } catch (err) {
-            console.error("[PARENT] postMessage失敗:", err);
-        }
-    } else {
-        console.warn("[PARENT] userEmail が localStorage に存在しません");
+
+    // UI 切替
+    if (!wasFullscreen) {
+      document.body.classList.add("app-mode");
+      app.classList.remove("hidden");
+      app.classList.add("fullscreen");
     }
-  
-    // UI 切替
-    if (!wasFullscreen) {
-      document.body.classList.add("app-mode");
-      app.classList.remove("hidden");
-      app.classList.add("fullscreen");
-    }
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-  };
-
-
-
+    app.classList.remove("loading");
+    inlineOverlay?.classList.remove("show");
+    overlay?.classList.add("hidden");
+  };
 
   const onError = () => {
     if (mySeq !== navSeq) return;
@@ -630,6 +624,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
