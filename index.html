@@ -396,6 +396,9 @@
   };
 
   const onLoad = () => {
+    const childFinalOrigin = frame.contentWindow.location.origin;
+    console.log("[PARENT] 子の最終オリジン:", childFinalOrigin);
+    
     if (mySeq !== navSeq) return;
     cleanup();
 
@@ -403,7 +406,8 @@
     const email = localStorage.getItem("userEmail");
     
     // iframeの最終的なオリジンを取得する
-    const childOrigin = new URL(frame.src).origin; 
+    const childOrigin = new URL(frame.src).origin;
+    
     
     // そのオリジンがGASの特定のURLであることを確認
     if (childOrigin.startsWith("https://script.google.com") || childOrigin.startsWith("https://script.googleusercontent.com")) {
@@ -610,6 +614,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
