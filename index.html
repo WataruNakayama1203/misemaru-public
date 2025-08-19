@@ -363,132 +363,134 @@
     } catch { return ""; }
   };
 
-  let childOrigin = ""; // グローバルに保持
+  // グローバルで子iframeのoriginを保持
+  let childOrigin = "";
   
+  // 子からの準備完了通知を受ける
   window.addEventListener("message", (event) => {
     const d = event.data || {};
-  
-    // 子からの「準備できた」通知
     if (d.type === "child-ready") {
-      childOrigin = d.origin;  // ← 子が自分のoriginを教えてくれる
+      childOrigin = d.origin;
       console.log("[PARENT] 子からorigin受信:", childOrigin);
     }
   });
-    
+  
   function navigateTo(page, push = true, params = {}) {
-  console.log("frame要素:", frame);
-  if (!page) { hardResetToIndex(); return; }
-
-  const current = pageFromLocation();
-  const currentFrame = framePage();
-  if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
-
-  const nextUrl = urlFor(page, params);
-  navSeq++; 
-  const mySeq = navSeq;
-
-  const wasFullscreen = app.classList.contains("fullscreen");
-  let overlayTimer;
-
-  if (wasFullscreen) {
-    inlineOverlay?.classList.remove("show");
-    overlayTimer = setTimeout(() => {
-      app.classList.add("loading");
-      inlineOverlay?.classList.add("show");
-    }, 220);
-  } else {
-    overlay?.classList.add("hidden");
-    overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
+    console.log("frame要素:", frame);
+    if (!page) { hardResetToIndex(); return; }
+  
+    const current = pageFromLocation();
+    const currentFrame = framePage();
+    if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
+  
+    const nextUrl = urlFor(page, params);
+    navSeq++; 
+    const mySeq = navSeq;
+  
+    const wasFullscreen = app.classList.contains("fullscreen");
+    let overlayTimer;
+  
+    if (wasFullscreen) {
+      inlineOverlay?.classList.remove("show");
+      overlayTimer = setTimeout(() => {
+        app.classList.add("loading");
+        inlineOverlay?.classList.add("show");
+      }, 220);
+    } else {
+      overlay?.classList.add("hidden");
+      overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
+    }
+  
+    const cleanup = () => {
+      frame.removeEventListener("load", onLoad);
+      frame.removeEventListener("error", onError);
+      clearTimeout(overlayTimer);
+      clearTimeout(timer);
+    };
+  
+    const onLoad = () => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+  
+      const email = localStorage.getItem("userEmail");
+      console.log("[PARENT] iframe load 完了: email=", email, " origin=", childOrigin);
+  
+      if (email && childOrigin) {
+        try {
+          frame.contentWindow.postMessage(
+            { type: "misemaru:email", email },
+            childOrigin
+          );
+          console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
+        } catch (err) {
+          console.error("[PARENT] postMessage失敗:", err);
+        }
+  
+        // fallback: 2秒後に再送
+        setTimeout(() => {
+          try {
+            frame.contentWindow.postMessage(
+              { type: "misemaru:email", email },
+              childOrigin
+            );
+            console.log("[PARENT] 再送postMessage:", email, "→", childOrigin);
+          } catch (err) {
+            console.error("[PARENT] 再送postMessage失敗:", err);
+          }
+        }, 2000);
+      }
+  
+      if (!wasFullscreen) {
+        document.body.classList.add("app-mode");
+        app.classList.remove("hidden");
+        app.classList.add("fullscreen");
+      }
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+    };
+  
+    const onError = () => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+      hardResetToIndex();
+      alert("ページの読み込みに失敗しました。");
+    };
+  
+    const timer = setTimeout(() => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+      hardResetToIndex();
+    }, 12000);
+  
+    frame.addEventListener("load", onLoad, { once: true });
+    frame.addEventListener("error", onError, { once: true });
+  
+    requestAnimationFrame(() => {
+      console.log("[PARENT] setFrameUrlReplace 実行:", nextUrl);
+      setFrameUrlReplace(nextUrl);
+    });
+  
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set("page", page);
+      for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== "") {
+          u.searchParams.set(k, String(v));
+        } else {
+          u.searchParams.delete(k);
+        }
+      }
+      history.pushState({ page, params }, "", u.toString());
+    }
   }
 
-  const cleanup = () => {
-    frame.removeEventListener("load", onLoad);
-    frame.removeEventListener("error", onError);
-    clearTimeout(overlayTimer);
-    clearTimeout(timer);
-  };
-
-  const onLoad = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-  
-    const email = localStorage.getItem("userEmail");
-    console.log("[PARENT] iframe load 完了: email=", email, " origin=", childOrigin);
-  
-    if (email && childOrigin) {
-      try {
-        frame.contentWindow.postMessage(
-          { type: "misemaru:email", email },
-          childOrigin
-        );
-        console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
-      } catch (err) {
-        console.error("[PARENT] postMessage失敗:", err);
-      }
-    }
-  };
-
-
-
-
-  const onError = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-    hardResetToIndex();
-    alert("ページの読み込みに失敗しました。");
-  };
-
-  const timer = setTimeout(() => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-    hardResetToIndex();
-  }, 12000);
-
-  // load が拾えない時の fallback 追加
-  frame.addEventListener("load", onLoad, { once: true });
-  frame.addEventListener("error", onError, { once: true });
-  
-  requestAnimationFrame(() => {
-    console.log("[PARENT] setFrameUrlReplace 実行:", nextUrl);
-    setFrameUrlReplace(nextUrl);
-  });
-  
-  // fallback: 2秒後に強制 postMessage
-  const allowedOrigins = [
-    "https://script.google.com",
-    "https://script.googleusercontent.com"
-  ];
-  
-  // onLoadの最後あたりに
-  setTimeout(() => {
-    if (email && childOrigin) {
-      frame.contentWindow.postMessage(
-        { type: "misemaru:email", email },
-        childOrigin
-      );
-      console.log("[PARENT] 再送postMessage:", email, "→", childOrigin);
-    }
-  }, 2000);
-
-  if (push) {
-    const u = new URL(location.href);
-    u.searchParams.set("page", page);
-    for (const [k, v] of Object.entries(params)) {
-      if (v != null && v !== "") {
-        u.searchParams.set(k, String(v));
-      } else {
-        u.searchParams.delete(k);
-      }
-    }
-    history.pushState({ page, params }, "", u.toString());
-  }
-}
  
 // ========= 設定 =========
 // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
@@ -624,6 +626,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
