@@ -396,9 +396,6 @@
   };
 
   const onLoad = () => {
-    const childFinalOrigin = frame.contentWindow.location.origin;
-    console.log("[PARENT] 子の最終オリジン:", childFinalOrigin);
-    
     if (mySeq !== navSeq) return;
     cleanup();
 
@@ -614,6 +611,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
