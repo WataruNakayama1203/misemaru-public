@@ -196,18 +196,64 @@
   </div>
 
   <script>
+    let userEmail = null;
+  
     function onSignIn(response) {
-      // JWT (ID トークン) をデコードしてメールを取り出す
       const credential = response.credential;
-      const payload = JSON.parse(atob(credential.split('.')[1]));
-      console.log("Google Login:", payload);
+      const payload = JSON.parse(atob(credential.split(".")[1]));
+      userEmail = payload.email;
+      console.log("✅ Logged in as:", userEmail);
+  
+      // ログイン後の画面制御
+      routeAfterLogin();
+    }
+  
+    function routeAfterLogin() {
+      if (!userEmail) {
+        showLoginPrompt();
+        return;
+      }
+  
+      // ここで GAS に問い合わせ（権限確認）
+      google.script.run
+        .withSuccessHandler(role => {
+          if (role === "admin") {
+            goTo("10_availability_admin");
+          } else if (role === "staff") {
+            goTo("20_staff_main");
+          } else if (role === "customer") {
+            goTo("10_availability_customer");
+          } else {
+            showForbidden();
+          }
+        })
+        .checkRole(userEmail); // GAS 側で判定
+    }
+  
+    function showLoginPrompt() {
+      document.getElementById("main").innerHTML = `
+        <p class="text-center mt-4">Googleアカウントでログインしてください</p>
+        <div id="g_id_onload"
+             data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+             data-context="signin"
+             data-callback="onSignIn"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="signin_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+      `;
+    }
     
-      // ここで payload.email が取れる
-      const email = payload.email;
-    
-      // そのまま iframe(GAS) に postMessage して渡すことも可能
-      const frame = document.getElementById("gasFrame");
-      frame.contentWindow.postMessage({ type: "misemaru:login", email }, "*");
+    function showForbidden() {
+      document.getElementById("main").innerHTML = `
+        <p class="text-center mt-4 text-danger">権限がありません</p>
+      `;
     }
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
@@ -501,6 +547,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
