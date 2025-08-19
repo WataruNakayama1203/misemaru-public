@@ -364,6 +364,7 @@
   };
     
   function navigateTo(page, push = true, params = {}) {
+  console.log("frame要素:", frame);
   if (!page) { hardResetToIndex(); return; }
 
   const current = pageFromLocation();
@@ -399,25 +400,15 @@
     if (mySeq !== navSeq) return;
     cleanup();
 
-    // frame.onload 内
     const email = localStorage.getItem("userEmail");
-    
-    // iframeの最終的なオリジンを取得する
     const childOrigin = new URL(frame.src).origin;
-    
-    
-    // そのオリジンがGASの特定のURLであることを確認
-    if (childOrigin.startsWith("https://script.google.com") || childOrigin.startsWith("https://script.googleusercontent.com")) {
-      try {
-        frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
-        console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
-      } catch (err) {
-        console.error("[PARENT] postMessage失敗:", err);
-      }
-    }
 
     console.log("[PARENT] iframe load 完了:", nextUrl, " email=", email, " origin=", childOrigin);
-    if (email) {
+    
+    if (email && (
+      childOrigin.startsWith("https://script.google.com") ||
+      childOrigin.startsWith("https://script.googleusercontent.com")
+    )) {
       try {
         frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
         console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
@@ -455,10 +446,14 @@
     hardResetToIndex();
   }, 12000);
 
+  // 👇 load/error のリスナーを先に登録してから src を切り替える
   frame.addEventListener("load", onLoad, { once: true });
   frame.addEventListener("error", onError, { once: true });
 
-  requestAnimationFrame(() => { setFrameUrlReplace(nextUrl); });
+  requestAnimationFrame(() => {
+    console.log("[PARENT] setFrameUrlReplace 実行:", nextUrl);
+    setFrameUrlReplace(nextUrl);
+  });
 
   if (push) {
     const u = new URL(location.href);
@@ -473,10 +468,7 @@
     history.pushState({ page, params }, "", u.toString());
   }
 }
-
-
-
-    
+ 
 // ========= 設定 =========
 // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
 const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
@@ -611,6 +603,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
