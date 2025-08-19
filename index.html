@@ -131,23 +131,42 @@
     border: 0;
     display: block;
   }
+  /* 🔹 ログインボタンのラッパを小さく固定 */
+  #google-login-container {
+    display: inline-block;
+    margin: 0.5rem;
+    position: absolute; /*
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+  
+  /* 読み込み直後に横幅を広げないため */
+  #google-login-container .g_id_signin {
+    min-width: 200px; /* 好きな幅に調整 */
+    max-width: 250px;
+  }
+
 </style>
 </head>
 <body>
-  <div id="g_id_onload"
-       data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
-       data-context="signin"
-       data-callback="onSignIn"
-       data-auto_prompt="false">
+  <!-- Google Sign-In ボタン用ラッパ -->
+  <div id="google-login-container">
+    <div id="g_id_onload"
+         data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+         data-context="signin"
+         data-callback="onSignIn"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="outline"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="right">
+    </div>
   </div>
-  <div class="g_id_signin"
-       data-type="standard"
-       data-shape="rectangular"
-       data-theme="outline"
-       data-text="signin_with"
-       data-size="large"
-       data-logo_alignment="left">
-  </div>
+
   <div id="wrap" class="container container-narrow py-0">
     <!-- ヘッダー（親UI） -->
     <div class="hero">
@@ -559,3 +578,4 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
