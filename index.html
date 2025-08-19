@@ -441,13 +441,15 @@
   
     frame.addEventListener("load", () => {
       const email = localStorage.getItem("userEmail");
-      console.log("[PARENT] iframe load, email=", email);
+      const childOrigin = new URL(frame.src).origin; // ← iframeのオリジンを取得
+      console.log("[PARENT] iframe load, origin=", childOrigin, " email=", email);
+    
       if (email) {
-        frame.contentWindow.postMessage({ type: "EMAIL", email }, "*");
-        console.log("[PARENT] postMessage送信:", email);
+        frame.contentWindow.postMessage({ type: "EMAIL", email }, childOrigin);
+        console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
       }
     }, { once: true });
-
+    
     frame.addEventListener("error", onError, { once: true });
   
     // ── ここが肝：iframe の src を差し替え ──
@@ -595,6 +597,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
