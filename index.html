@@ -366,7 +366,6 @@
   // === グローバル ===
 let childOrigin = "";         // 子iframeの実origin（例: https://n-xxxx.googleusercontent.com）
 let emailPending = "";        // まだ送れてないメール（child-ready前なら保留用）
-const frame = document.getElementById("gasFrame");
 
 // 子→親: child-ready 受信（必ず window.top で届く）
 window.addEventListener("message", (e) => {
@@ -639,6 +638,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
