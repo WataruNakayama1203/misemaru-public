@@ -456,21 +456,24 @@
   });
   
   // fallback: 2秒後に強制 postMessage
+  const allowedOrigins = [
+    "https://script.google.com",
+    "https://script.googleusercontent.com"
+  ];
+  
   setTimeout(() => {
     const email = localStorage.getItem("userEmail");
     if (email) {
-      try {
-        // ✅ 送り先は script.google.com に統一
-        frame.contentWindow.postMessage(
-          { type: "misemaru:email", email },
-          "https://script.google.com"
-        );
-        console.log("[PARENT] fallback postMessage:", email, "→ https://script.google.com");
-      } catch (err) {
-        console.error("[PARENT] fallback 送信失敗:", err);
+      const origin = new URL(frame.src).origin;
+      if (allowedOrigins.includes(origin)) {
+        frame.contentWindow.postMessage({ type: "misemaru:email", email }, origin);
+        console.log("[PARENT] fallback postMessage:", email, "→", origin);
+      } else {
+        console.warn("[PARENT] iframe オリジン不明:", origin);
       }
     }
   }, 2000);
+
 
 
   if (push) {
@@ -621,6 +624,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
