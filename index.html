@@ -401,7 +401,25 @@
     cleanup();
 
     const email = localStorage.getItem("userEmail");
-    const childOrigin = new URL(frame.src).origin;
+    
+    // iframe がロードされた時点の src を安全に取得
+    let childOrigin = "";
+    try {
+      childOrigin = new URL(frame.src).origin;
+      console.log("[PARENT] childOrigin=", childOrigin);
+    } catch (err) {
+      console.error("[PARENT] childOrigin取得失敗:", frame.src, err);
+      return; // ここで処理中断
+    }
+    
+    if (email && (childOrigin.startsWith("https://script.google.com") || childOrigin.startsWith("https://script.googleusercontent.com"))) {
+      try {
+        frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
+        console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
+      } catch (err) {
+        console.error("[PARENT] postMessage失敗:", err);
+      }
+    }
 
     console.log("[PARENT] iframe load 完了:", nextUrl, " email=", email, " origin=", childOrigin);
     
@@ -624,6 +642,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
