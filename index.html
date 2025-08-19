@@ -459,8 +459,16 @@
   setTimeout(() => {
     const email = localStorage.getItem("userEmail");
     if (email) {
-      frame.contentWindow.postMessage({ type: "misemaru:email", email }, "https://script.googleusercontent.com");
-      console.log("[PARENT] fallback postMessage:", email);
+      try {
+        // ✅ 送り先は script.google.com に統一
+        frame.contentWindow.postMessage(
+          { type: "misemaru:email", email },
+          "https://script.google.com"
+        );
+        console.log("[PARENT] fallback postMessage:", email, "→ https://script.google.com");
+      } catch (err) {
+        console.error("[PARENT] fallback 送信失敗:", err);
+      }
     }
   }, 2000);
 
@@ -613,6 +621,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
