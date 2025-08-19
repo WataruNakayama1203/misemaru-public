@@ -230,31 +230,35 @@
   }
 
   // ログイン状態でページ開いたときの処理
-  function routeAfterLogin() {
-    const email = window.userEmail || localStorage.getItem("userEmail");
-    if (!email) {
-      console.log("⚠️ 未ログインなのでログイン促す");
-      return;
-    }
-
-    // GAS にメール渡して権限チェック
-    google.script.run
-      .withSuccessHandler(role => {
-        console.log("🎭 Role from GAS:", role);
-
-        const pageName = (new URL(location.href)).searchParams.get("page") || "";
-
-        if (role === "admin" && pageName.endsWith("_admin")) {
-          console.log("✅ AdminページOK");
-        } else if ((role === "admin" || role === "staff") && pageName.endsWith("_staff")) {
-          console.log("✅ StaffページOK");
-        } else {
-          console.warn("🚫 権限なし → Forbidden表示");
-          showForbidden();
-        }
-      })
-      .checkRole(email); // GAS側の関数に投げる
+  async function routeAfterLogin() {
+  if (!userEmail) {
+    showLoginPrompt();
+    return;
   }
+
+  console.log("♻️ routeAfterLogin with:", userEmail);
+
+  try {
+    const resp = await fetch(
+      GAS_BASE + "&action=checkRole&email=" + encodeURIComponent(userEmail)
+    );
+    const role = await resp.text(); // 返り値は "admin" / "staff" / "customer" / "forbidden"
+
+    if (role === "admin") {
+      goTo("10_availability_admin");
+    } else if (role === "staff") {
+      goTo("20_staff_main");
+    } else if (role === "customer") {
+      goTo("10_availability_customer");
+    } else {
+      showForbidden();
+    }
+  } catch (err) {
+    console.error("❌ role check failed:", err);
+    showForbidden();
+  }
+}
+
 
   // 権限なし
   function showForbidden() {
@@ -564,6 +568,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
