@@ -131,40 +131,17 @@
     border: 0;
     display: block;
   }
-  .site-header{
-  position: sticky; top: 0; z-index: 1000;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: saturate(140%) blur(6px);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-}
-.header-inner{
-  max-width: 1100px; margin: 0 auto;
-  padding: 8px 12px;
-  display: flex; align-items: center; justify-content: flex-start;
-}
-
-/* ボタン台座を先に確保 → レイアウトシフト防止 */
-#google-login-anchor{
-  width: 240px; height: 40px;   /* 必要なら微調整 */
+  /* ボタン台座を先に確保 → レイアウトシフト防止 */
+#google-login-anchor {
+  width: 240px;
+  height: 40px;
   display: inline-block;
-  opacity: 0;                    /* レンダ後に表示 */
-  transition: opacity .15s ease; /* ふわっと表示 */
+  opacity: 0; /* 最初は非表示 */
+  transition: opacity .15s ease; /* フェードイン */
 }
 
-/* レンダ完了後に付けるクラス */
-#google-login-anchor.gsi-ready{ opacity: 1; }
-
-/* Googleログインボタン用の箱 */
-#gsi-wrapper {
-  display: inline-block;
-  width: 240px;    /* 好きな幅 */
-  height: 40px;    /* ボタン高さに合わせる */
-  opacity: 0;      /* 最初は非表示 */
-  transition: opacity .15s ease;
-}
-
-/* レンダリング完了後に付与 */
-#gsi-wrapper.gsi-ready {
+/* レンダ後に付与するクラス */
+#google-login-anchor.gsi-ready {
   opacity: 1;
 }
 
@@ -173,11 +150,12 @@
 </head>
 <body>
   <!-- Google Sign-In ボタン用ラッパ -->
-    <header class="site-header">
-      <div class="header-inner">
-        <div id="google-login-anchor" aria-label="Google Sign-In"></div>
-      </div>
-    </header>
+  <header class="site-header">
+    <div class="header-inner">
+      <!-- Google Sign-In ボタン用台座 -->
+      <div id="google-login-anchor" aria-label="Google Sign-In"></div>
+    </div>
+  </header>
 
   <div id="wrap" class="container container-narrow py-0">
     <!-- ヘッダー（親UI） -->
@@ -598,6 +576,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
