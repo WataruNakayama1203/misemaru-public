@@ -497,6 +497,13 @@ window.addEventListener("message", (e) => {
     }
   } catch (err) {}
 
+  if (d.type === "misemaru:request-email") {
+    const email = localStorage.getItem("userEmail") || "";
+    console.log("[PARENT] request-email 受信, email=", email);
+    e.source.postMessage({ type: "misemaru:email", email }, e.origin);
+    return;
+  }
+
   // ▶ ルーティング
   if (d.type === "misemaru:navigate") {
     // ★ push/replaceとparamsをサポート
@@ -597,6 +604,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
