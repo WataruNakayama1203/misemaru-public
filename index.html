@@ -401,26 +401,25 @@
     cleanup();
   
     const email = localStorage.getItem("userEmail");
-    let childOrigin = "";
   
+    // ← frame.src が空になるので、nextUrl から origin を取る
+    let childOrigin = "";
     try {
-      if (frame.src && frame.src.startsWith("http")) {
-        childOrigin = new URL(frame.src).origin;
-      }
+      childOrigin = new URL(nextUrl, location.href).origin;
+      console.log("[PARENT] childOrigin from nextUrl =", childOrigin);
     } catch (err) {
-      console.error("[PARENT] childOrigin取得失敗:", frame.src, err);
+      console.error("[PARENT] childOrigin取得失敗:", nextUrl, err);
       return;
     }
   
-    console.log("[PARENT] iframe load 完了:", frame.src, " email=", email, " origin=", childOrigin);
+    console.log("[PARENT] iframe load 完了: email=", email, " origin=", childOrigin);
   
     if (email) {
       try {
-        // まず frame.src のオリジンへ
         frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
         console.log("[PARENT] postMessage送信:", email, "→", childOrigin);
   
-        // 念のため googleusercontent.com へも fallback
+        // fallback も送っておく
         frame.contentWindow.postMessage({ type: "misemaru:email", email }, "https://script.googleusercontent.com");
         console.log("[PARENT] fallback postMessage:", email, "→ https://script.googleusercontent.com");
       } catch (err) {
@@ -437,6 +436,7 @@
     inlineOverlay?.classList.remove("show");
     overlay?.classList.add("hidden");
   };
+
 
 
   const onError = () => {
@@ -636,6 +636,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
