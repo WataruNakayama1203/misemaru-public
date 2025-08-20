@@ -403,16 +403,12 @@
   //ログイン画面を表示
   function showLoginPrompt() {
     console.log("showLoginPrompt() called");
-    console.log("hero:", hero);
-    console.log("google.accounts.id:", window.google?.accounts?.id);
-    // hero の下に差し込む
-    const hero = document.querySelector(".hero");
-    if (!hero) {
+    const heroElem = document.querySelector(".hero");
+    if (!heroElem) {
       console.error("❌ .hero が見つかりません");
       return;
     }
   
-    // すでに表示されていれば何もしない
     if (document.getElementById("google-login-container")) return;
   
     const container = document.createElement("div");
@@ -422,9 +418,8 @@
       <p class="mb-3">Googleアカウントでログインしてください</p>
       <div id="login-btn"></div>
     `;
-    hero.insertAdjacentElement("afterend", container);
+    heroElem.insertAdjacentElement("afterend", container);
   
-    // Google Identity Services 初期化＆ボタン描画
     if (window.google?.accounts?.id) {
       window.google.accounts.id.initialize({
         client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
@@ -446,6 +441,7 @@
       console.error("❌ Google Identity Services がまだロードされていません");
     }
   }
+
 
   function showInlineLoginPrompt() {
     // すでに表示済みなら何もしない
@@ -723,6 +719,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
