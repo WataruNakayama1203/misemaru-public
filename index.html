@@ -439,6 +439,17 @@
   
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
+      (function setEmailToFrameName() {
+        const email = localStorage.getItem("userEmail") || "";
+        const payload = email ? `me:${encodeURIComponent(email)}` : ""; // シンプル & 安全
+        try {
+          frame.name = payload;                   // プロパティ
+          frame.setAttribute("name", payload);    // 属性（保険）
+          console.log("[PARENT] frame.name セット:", frame.name);
+        } catch (e) {
+          console.warn("[PARENT] frame.name セット失敗:", e);
+        }
+      })();
       setFrameUrlReplace(nextUrl);
     });
   
@@ -587,6 +598,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
