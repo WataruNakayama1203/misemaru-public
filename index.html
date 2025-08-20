@@ -507,21 +507,7 @@
       history.pushState({ page, params }, "", u.toString());
     }
   }
-    // ====== 履歴処理 ======
-    if (push) {
-      const u = new URL(location.href);
-      u.searchParams.set("page", page);
-      for (const [k, v] of Object.entries(params)) {
-        if (v != null && v !== "") u.searchParams.set(k, String(v));
-        else u.searchParams.delete(k);
-      }
-      history.pushState({ page, params }, "", u.toString());
-    }
-  
-    // ====== 子切替なのでハンドシェイク状態をクリア ======
-    _childWin = null;
-    _childOrigin = null;
-  }
+
 
   // ========= 設定 =========
   // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
@@ -657,6 +643,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
