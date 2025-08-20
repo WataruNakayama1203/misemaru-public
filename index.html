@@ -241,19 +241,31 @@
   // --- Google Sign-In コールバック（差し替え）---
   // ===== サインイン待ちキュー =====
   let _afterSignInQueue = [];
+  let _promptInFlight = false;
+    
   function ensureSignedIn(runAfter) {
-    if (window.userEmail) { runAfter?.(); return; }
-    _afterSignInQueue.push(runAfter);
-  
-    // サイレント復元（FedCM/One Tap）。右上がログイン済みなら onSignIn が走る
-    try { window.google?.accounts?.id?.prompt?.(); } catch (_) {}
-  
-    // 見た目も促す
-    showInlineLoginPrompt();
+   if (window.userEmail) { runAfter?.(); return; }
+   _afterSignInQueue.push(runAfter);
+   if (!_promptInFlight) {
+     _promptInFlight = true;
+     console.log("[LOGIN] prompt() start");
+     try {
+       window.google?.accounts?.id?.prompt?.((n) => {
+         _promptInFlight = false;
+         console.log("[LOGIN] prompt() cb",
+           { dismissed: n.isDismissedMoment?.(), notDisplayed: n.isNotDisplayed?.(), skipped: n.isSkippedMoment?.() });
+       });
+     } catch (e) {
+       _promptInFlight = false;
+       console.warn("[LOGIN] prompt() error", e);
+     }
+   }
+   showInlineLoginPrompt();
   }
 
   function onSignIn(response) {
     const payload = parseGoogleCredential(response?.credential);
+    console.log("[LOGIN] onSignIn payload", payload);
     const email = payload?.email || "";
     if (!email) {
       alert("メールアドレスが取得できませんでした。もう一度ログインしてください。");
@@ -274,16 +286,11 @@
   // --- ログイン後の画面制御（差し替え）---
   // ※ 親(GitHub)では google.script.run は使えないので呼ばない！
   //   認可チェックは iframe(子/GAS) が受け取って実施する。
-  function routeAfterLogin() {
-    if (!window.userEmail) {
-       console.warn("[PARENT] navigateTo: 未ログイン → サインイン待機");
-       ensureSignedIn(() => navigateTo(page, push, params)); // 一度だけ戻ってくる
-       return;
-     }
-  
-    // ログイン後は常に index（親UIトップ）に戻す
-    hardResetToIndex();
-  }
+    function routeAfterLogin() {
+      // ログイン後は常に index（親UIトップ）に戻す
+      console.log("[PARENT] routeAfterLogin", { userEmail: window.userEmail });
+      hardResetToIndex();
+    }
 
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
@@ -482,13 +489,15 @@
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
-    // 未ログインはログインUIへ
-    const email = window.userEmail || "";  // ← localStorageやめる
-    if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログイン → ログインメッセージを表示");
-      showInlineLoginPrompt();
-      return;
-    }
+    // 未ログインなら一度だけサイレント復元を試み、完了後に再実行
+    if (!window.userEmail) {
+       console.warn("[PARENT] navigateTo: 未ログイン → サインイン待機キュー投入", { page, push, params });
+       ensureSignedIn(() => {
+         console.log("[PARENT] ensureSignedIn→navigateTo再実行", { page });
+         navigateTo(page, push, params);
+       });
+       return;
+     }
   
     const current = pageFromLocation();
     const currentFrame = framePage();
@@ -708,58 +717,3 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
