@@ -362,162 +362,111 @@
       return new URL(frame?.src || "", location.origin).searchParams.get("page") || "";
     } catch { return ""; }
   };
-
-  // === グローバル ===
-let childOrigin = "";         // 子iframeの実origin（例: https://n-xxxx.googleusercontent.com）
-let emailPending = "";        // まだ送れてないメール（child-ready前なら保留用）
-
-// 子→親: child-ready 受信（必ず window.top で届く）
-window.addEventListener("message", (e) => {
-  const d = e.data || {};
-  if (d.type === "misemaru:child-ready") {
-    // 子(実体)のoriginである *.googleusercontent.com 以外は無視
-    if (!e.origin.endsWith(".googleusercontent.com")) {
-      console.warn("[PARENT] child-ready 送信元が不正:", e.origin);
-      return;
+    
+  function navigateTo(page, push = true, params = {}) {
+    if (!page) { hardResetToIndex(); return; }
+  
+    const current = pageFromLocation();
+    const currentFrame = framePage();
+    if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
+  
+    const nextUrl = urlFor(page, params);
+    navSeq++; const mySeq = navSeq;
+  
+    const wasFullscreen = app.classList.contains("fullscreen");
+    let overlayTimer;
+    if (wasFullscreen) {
+      inlineOverlay?.classList.remove("show");
+      overlayTimer = setTimeout(() => {
+        app.classList.add("loading");
+        inlineOverlay?.classList.add("show");
+      }, 220);
+    } else {
+      overlay?.classList.add("hidden");
+      overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
     }
-    childOrigin = e.origin;
-    console.log("[PARENT] childOrigin 確定:", childOrigin);
-
-    // 保留中のメールがあれば送る
-    if (emailPending) {
-      postEmailToChild(emailPending);
-      emailPending = "";
-    }
-  }
-});
-
-// 子へメールを送る関数（originが確定している前提）
-function postEmailToChild(email) {
-  if (!frame?.contentWindow) {
-    console.warn("[PARENT] frame.contentWindow なし");
-    return false;
-  }
-  if (!childOrigin) {
-    console.warn("[PARENT] childOrigin 未確定。保留します");
-    return false;
-  }
-  try {
-    frame.contentWindow.postMessage({ type: "misemaru:email", email }, childOrigin);
-    console.log("[PARENT] email 送信:", email, "→", childOrigin);
-    return true;
-  } catch (err) {
-    console.error("[PARENT] email 送信失敗:", err);
-    return false;
-  }
-}
-
-function navigateTo(page, push = true, params = {}) {
-  if (!page) { hardResetToIndex(); return; }
-
-  const current = pageFromLocation();
-  const currentFrame = framePage();
-  if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
-
-  const nextUrl = urlFor(page, params);
-  navSeq++; const mySeq = navSeq;
-
-  const wasFullscreen = app.classList.contains("fullscreen");
-  let overlayTimer;
-
-  if (wasFullscreen) {
-    inlineOverlay?.classList.remove("show");
-    overlayTimer = setTimeout(() => {
-      app.classList.add("loading");
-      inlineOverlay?.classList.add("show");
-    }, 220);
-  } else {
-    overlay?.classList.add("hidden");
-    overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
-  }
-
-  const cleanup = () => {
-    frame.removeEventListener("load", onLoad);
-    frame.removeEventListener("error", onError);
-    clearTimeout(overlayTimer);
-    clearTimeout(timer);
-  };
-
-  const onLoad = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-
-    const email = localStorage.getItem("userEmail") || "";
-    console.log("[PARENT] iframe load 完了。email=", email, " childOrigin=", childOrigin || "(未確定)");
-
-    // childOrigin がまだなら保留、確定済みなら即送る
-    if (email) {
-      if (!postEmailToChild(email)) {
-        emailPending = email;
-        // 念のためリトライ（child-ready が少し遅れるケース向け）
-        setTimeout(() => { if (emailPending) postEmailToChild(emailPending); }, 1500);
+  
+    const cleanup = () => {
+      frame.removeEventListener("load", onLoad);
+      frame.removeEventListener("error", onError);
+      clearTimeout(overlayTimer);
+      clearTimeout(timer);
+    };
+  
+    const onLoad = () => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+  
+      if (!wasFullscreen) {
+        document.body.classList.add("app-mode");
+        app.classList.remove("hidden");
+        app.classList.add("fullscreen");
       }
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+    };
+  
+    const onError = () => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+      hardResetToIndex();
+      alert("ページの読み込みに失敗しました。");
+    };
+  
+    const timer = setTimeout(() => {
+      if (mySeq !== navSeq) return;
+      cleanup();
+      app.classList.remove("loading");
+      inlineOverlay?.classList.remove("show");
+      overlay?.classList.add("hidden");
+      hardResetToIndex();
+    }, 12000);
+  
+    frame.addEventListener("load", onLoad,  { once: true });
+    frame.addEventListener("error", onError, { once: true });
+  
+    // URLに出さずに iframe へ値を渡す
+    const email = localStorage.getItem("userEmail") || "";
+    try {
+      frame.name = JSON.stringify({ type: "misemaru-email", email });
+    } catch (_) {
+      frame.name = email; // 念のためプレーン文字列 fallback
     }
-
-    if (!wasFullscreen) {
-      document.body.classList.add("app-mode");
-      app.classList.remove("hidden");
-      app.classList.add("fullscreen");
+  
+    requestAnimationFrame(() => {
+      console.log("[PARENT] setFrameUrlReplace:", nextUrl);
+      setFrameUrlReplace(nextUrl);
+    });
+  
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set("page", page);
+      for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== "") u.searchParams.set(k, String(v));
+        else u.searchParams.delete(k);
+      }
+      history.pushState({ page, params }, "", u.toString());
     }
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-  };
-
-  const onError = () => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-    hardResetToIndex();
-    alert("ページの読み込みに失敗しました。");
-  };
-
-  const timer = setTimeout(() => {
-    if (mySeq !== navSeq) return;
-    cleanup();
-    app.classList.remove("loading");
-    inlineOverlay?.classList.remove("show");
-    overlay?.classList.add("hidden");
-    hardResetToIndex();
-  }, 12000);
-
-  frame.addEventListener("load", onLoad,  { once: true });
-  frame.addEventListener("error", onError, { once: true });
-
-  requestAnimationFrame(() => {
-    console.log("[PARENT] setFrameUrlReplace:", nextUrl);
-    setFrameUrlReplace(nextUrl);
-  });
-
-  if (push) {
-    const u = new URL(location.href);
-    u.searchParams.set("page", page);
-    for (const [k, v] of Object.entries(params)) {
-      if (v != null && v !== "") u.searchParams.set(k, String(v));
-      else u.searchParams.delete(k);
-    }
-    history.pushState({ page, params }, "", u.toString());
   }
-}
-
-
- 
-// ========= 設定 =========
-// テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
-const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
-
-// 受け付ける送信元
-const ALLOWED_ORIGINS = [
-  "https://script.google.com", // 固定
-  // *.googleusercontent.com は endsWith で許可するのでここは不要
-];
-function isAllowedOrigin(origin) {
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (origin.endsWith(".googleusercontent.com")) return true;
-  return false;
-}
+  
+  // ========= 設定 =========
+  // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
+  const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
+  
+  // 受け付ける送信元
+  const ALLOWED_ORIGINS = [
+    "https://script.google.com", // 固定
+    // *.googleusercontent.com は endsWith で許可するのでここは不要
+  ];
+  function isAllowedOrigin(origin) {
+    if (ALLOWED_ORIGINS.includes(origin)) return true;
+    if (origin.endsWith(".googleusercontent.com")) return true;
+    return false;
+  }
 
 // ========= 子(GAS) → 親ナビ =========
 window.addEventListener("message", (e) => {
@@ -638,6 +587,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
