@@ -408,6 +408,14 @@
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
+    // ====== ログイン確認 ======
+    const email = localStorage.getItem("userEmail") || "";
+    if (!email) {
+      console.warn("[PARENT] navigateTo: 未ログインのため中止");
+      hardResetToIndex();
+      return;
+    }
+  
     const current = pageFromLocation();
     const currentFrame = framePage();
     if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
@@ -471,28 +479,37 @@
     frame.addEventListener("load", onLoad,  { once: true });
     frame.addEventListener("error", onError, { once: true });
   
-    // ====== frame.name に安全に入れておく（保険用） ======
+    // ====== frame.name に安全に入れておく ======
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
-    
-      (function setEmailToFrameName() {
-        const email = localStorage.getItem("userEmail") || "";
+  
+      try {
         const payload = {
           type: "misemaru-email",
           email,
           page
         };
-        try {
-          frame.name = JSON.stringify(payload);   // JSON を直接セット
-          frame.setAttribute("name", frame.name); // 保険で属性にもセット
-          console.log("[PARENT] frame.name セット:", frame.name);
-        } catch (e) {
-          console.warn("[PARENT] frame.name セット失敗:", e);
-        }
-      })();
-    
+        frame.name = JSON.stringify(payload);
+        frame.setAttribute("name", frame.name);
+        console.log("[PARENT] frame.name セット:", frame.name);
+      } catch (e) {
+        console.warn("[PARENT] frame.name セット失敗:", e);
+      }
+  
       setFrameUrlReplace(nextUrl);
     });
+  
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set("page", page);
+      for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== "") u.searchParams.set(k, String(v));
+        else u.searchParams.delete(k);
+      }
+      history.pushState({ page, params }, "", u.toString());
+    }
+  }
+
 
   
     // ====== 履歴処理 ======
@@ -645,6 +662,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
