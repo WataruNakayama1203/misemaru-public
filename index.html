@@ -129,23 +129,23 @@
     border: 0;
     display: block;
   }
-  /* 🔹 ログインボタンのラッパを小さく固定 */
   #google-login-container {
-    display: inline-block;
-    margin: 0.5rem;
     position: absolute;
     top: 0.5rem;
-    right: 0rem;
-  }
-  #google-login-container {
-    opacity: 0;
-    visibility: hidden;
+    right: 0;
+    display: inline-block;
+    margin: 0.5rem;
+    z-index: 1000;          /* ← 前面へ */
+    opacity: 0;             /* ← 初期は非表示 */
+    visibility: hidden;     /* ← 初期は非表示 */
     transition: opacity .18s ease;
   }
   #google-login-container.is-ready {
     opacity: 1;
     visibility: visible;
   }
+  /* 念のため、ターゲットがゼロサイズ扱いにならないように */
+  #signin-button { min-width: 140px; min-height: 40px; }
 </style>
 </head>
 <body>
@@ -314,37 +314,64 @@
       return u.origin + u.pathname;           // 末尾スラなし/ありはどちらでもOK
     })();
 
-    // === 右上ボタン：描画 & フェードイン制御 ===
+    // GSI クライアントが使えるようになるまで待つユーティリティ
+    function whenGSIReady(fn, opts = {}) {
+      const { maxWaitMs = 3000, intervalMs = 100 } = opts;
+      const start = Date.now();
+      const tick = () => {
+        if (window.google?.accounts?.id) { fn(); return; }
+        if (Date.now() - start >= maxWaitMs) {
+          console.warn("[GSI] not loaded within", maxWaitMs, "ms");
+          // フォールバック：ラッパだけは表示させる（空白でも見えるように）
+          document.getElementById("google-login-container")?.classList.add("is-ready");
+          return;
+        }
+        setTimeout(tick, intervalMs);
+      };
+      tick();
+    }
+    
+    // 右上ボタンの描画 & フェードイン
     function renderTopRightButton() {
       const wrap = document.getElementById("google-login-container");
       const target = document.getElementById("signin-button");
-      if (!wrap || !target) return;
+      if (!wrap || !target) { console.warn("[GSI] container/target not found"); return; }
     
-      // まず非表示（CSSで opacity:0 になっている）
+      // 初期は非表示
       wrap.classList.remove("is-ready");
+      target.innerHTML = ""; // 再描画に備えて一旦クリア
     
-      // GIS 初期化（onSignIn は既存のものを使用）
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
-          callback: onSignIn,
-          use_fedcm_for_prompt: true,
-        });
+      whenGSIReady(() => {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
+            callback: onSignIn,
+            use_fedcm_for_prompt: true,
+          });
     
-        // 手動で描画
-        target.innerHTML = ""; // クリアしてから再描画
-        window.google.accounts.id.renderButton(target, {
-          theme: "outline",
-          size: "large",
-          text: "signin_with",
-          shape: "rectangular",
-          logo_alignment: "right",
-        });
+          window.google.accounts.id.renderButton(target, {
+            theme: "outline",
+            size: "large",
+            text: "signin_with",
+            shape: "rectangular",
+            logo_alignment: "right",
+          });
     
-        // 次フレームでフェードイン（レイアウト確定後）
-        requestAnimationFrame(() => wrap.classList.add("is-ready"));
-      }
+          // レイアウト確定後にフェードイン
+          requestAnimationFrame(() => wrap.classList.add("is-ready"));
+        } catch (e) {
+          console.error("[GSI] render error", e);
+          // 失敗してもラッパは見せる（空でも）
+          wrap.classList.add("is-ready");
+        }
+      });
     }
+    
+    window.addEventListener("DOMContentLoaded", renderTopRightButton);
+    window.addEventListener("load", () => {
+      // もし DOMContentLoaded 時点で GSI が未読込だった場合に備え再試行
+      renderTopRightButton();
+    });
     
     function resetGoogleSignInButton() {
       try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch (_) {}
@@ -352,7 +379,6 @@
     }
   
      window.addEventListener('DOMContentLoaded', () => {
-      renderTopRightButton();
       if (window.google?.accounts?.id) {
         google.accounts.id.prompt((notification) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
@@ -758,6 +784,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
