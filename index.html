@@ -411,8 +411,8 @@
     // ====== ログイン確認 ======
     const email = localStorage.getItem("userEmail") || "";
     if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログインのため中止");
-      hardResetToIndex();
+      console.warn("[PARENT] navigateTo: 未ログインのため中止 → ログイン画面へ戻す");
+      hardResetToIndex();   // ← ここでログイン画面に戻す
       return;
     }
   
@@ -423,6 +423,7 @@
     const nextUrl = urlFor(page, params);
     navSeq++; const mySeq = navSeq;
   
+    // ローディング UI 管理
     const wasFullscreen = app.classList.contains("fullscreen");
     let overlayTimer;
     if (wasFullscreen) {
@@ -479,16 +480,12 @@
     frame.addEventListener("load", onLoad,  { once: true });
     frame.addEventListener("error", onError, { once: true });
   
-    // ====== frame.name に安全に入れておく ======
+    // ====== frame.name に安全にセット ======
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
   
       try {
-        const payload = {
-          type: "misemaru-email",
-          email,
-          page
-        };
+        const payload = { type: "misemaru-email", email, page };
         frame.name = JSON.stringify(payload);
         frame.setAttribute("name", frame.name);
         console.log("[PARENT] frame.name セット:", frame.name);
@@ -499,6 +496,7 @@
       setFrameUrlReplace(nextUrl);
     });
   
+    // ====== 履歴 push ======
     if (push) {
       const u = new URL(location.href);
       u.searchParams.set("page", page);
@@ -509,9 +507,6 @@
       history.pushState({ page, params }, "", u.toString());
     }
   }
-
-
-  
     // ====== 履歴処理 ======
     if (push) {
       const u = new URL(location.href);
@@ -662,6 +657,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
