@@ -459,7 +459,7 @@
     // 未ログインはログインUIへ
     const email = localStorage.getItem("userEmail") || "";
     if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログイン → ログイン画面を表示");
+      console.warn("[PARENT] navigateTo: 未ログイン → ログイン画面を表示する");
       showLoginPrompt();   // ← index に戻すのではなくログインUIを表示
       return;
     }
@@ -682,6 +682,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
