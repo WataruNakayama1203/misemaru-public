@@ -232,6 +232,66 @@
       return "";
     }
   }
+
+  // 表示上の“最後にボタンが覚えているメール”を記録
+let _lastGsiEmailShown = (sessionStorage.getItem("userEmail") || "");
+
+// GSIボタンを“一度だけ”手動描画に切り替える（今ある .g_id_signin を置き換え）
+function refreshGsiButton() {
+  const wrap = document.getElementById("google-login-container");
+  if (!wrap) return;
+
+  // 既存の自動描画ボタンを外す
+  const auto = wrap.querySelector(".g_id_signin");
+  if (auto) auto.remove();
+
+  // 手動描画ターゲットを用意
+  let target = wrap.querySelector("#signin-button");
+  if (!target) {
+    target = document.createElement("div");
+    target.id = "signin-button";
+    wrap.appendChild(target);
+  } else {
+    target.innerHTML = "";
+  }
+
+  // 再初期化して描画
+  if (window.google?.accounts?.id) {
+    window.google.accounts.id.initialize({
+      client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
+      callback: onSignIn,
+      use_fedcm_for_prompt: true,
+    });
+    window.google.accounts.id.renderButton(target, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+      shape: "rectangular",
+      logo_alignment: "right",
+    });
+  }
+}
+
+// 旧アカウントの“自動選択/個人化”を消して、ボタン再描画
+function resetGsiPersonalization(prevEmail) {
+  try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch(_) {}
+  try {
+    if (prevEmail) window.google?.accounts?.id?.revoke?.(prevEmail, () => {
+      console.log("[GSI] revoke done for:", prevEmail);
+    });
+  } catch(_) {}
+  refreshGsiButton();
+}
+
+// サインイン時に“表示アカウント”のズレを直す
+function handleAccountSwitch(newEmail) {
+  if (_lastGsiEmailShown && _lastGsiEmailShown !== newEmail) {
+    resetGsiPersonalization(_lastGsiEmailShown);
+  }
+  _lastGsiEmailShown = newEmail;
+}
+
+    
   function parseGoogleCredential(credential) {
     try {
       const parts = String(credential || "").split(".");
@@ -287,7 +347,7 @@
     window.userEmail = email;
     try { sessionStorage.setItem("userEmail", email); } catch (e) {}
     console.log("✅ Logged in as:", email);
-  
+    handleAccountSwitch(email);
     const q = _afterSignInQueue.splice(0);
     q.forEach(fn => { try { fn?.(); } catch(e) { console.warn(e); } });
   
@@ -333,6 +393,7 @@
   
       // push=false で履歴を増やさず、今のURLのまま起動
       navigateTo(p, false, params);
+      refreshGsiButton();
     });
   
     const frame   = document.getElementById("gasFrame");
@@ -717,3 +778,4 @@ window.addEventListener("message", (e) => {
   </script>
 </body>
 </html>
+
