@@ -374,22 +374,32 @@
 
   //ログイン画面を表示
   function showLoginPrompt() {
-    const main = document.getElementById("main");
-    if (!main) return;
+    // hero の下に差し込む
+    const hero = document.querySelector(".hero");
+    if (!hero) {
+      console.error("❌ .hero が見つかりません");
+      return;
+    }
   
-    main.innerHTML = `
-      <p class="text-center mt-4">Googleアカウントでログインしてください</p>
+    // すでに表示されていれば何もしない
+    if (document.getElementById("google-login-container")) return;
+  
+    const container = document.createElement("div");
+    container.id = "google-login-container";
+    container.className = "text-center my-4";
+    container.innerHTML = `
+      <p class="mb-3">Googleアカウントでログインしてください</p>
       <div id="login-btn"></div>
     `;
+    hero.insertAdjacentElement("afterend", container);
   
-    // GIS API がロードされているか確認
-    if (window.google && window.google.accounts && window.google.accounts.id) {
+    // Google Identity Services 初期化＆ボタン描画
+    if (window.google?.accounts?.id) {
       window.google.accounts.id.initialize({
         client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
         callback: onSignIn,
       });
   
-      // SignIn ボタンを描画
       window.google.accounts.id.renderButton(
         document.getElementById("login-btn"),
         {
@@ -400,13 +410,11 @@
           logo_alignment: "right",
         }
       );
-  
-      // 自動プロンプトも必要なら呼べる
-      // window.google.accounts.id.prompt();
     } else {
-      console.error("❌ Google Identity Services がロードされていません");
+      console.error("❌ Google Identity Services がまだロードされていません");
     }
   }
+
   // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
   function isAllowedChildOrigin(origin) {
     try {
@@ -674,6 +682,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
