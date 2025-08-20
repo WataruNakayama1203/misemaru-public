@@ -371,6 +371,33 @@
       );
     } catch { return false; }
   }
+
+  //ログイン画面を表示
+  function showLoginPrompt() {
+  const main = document.getElementById("main"); // index.html 側のメインコンテナ
+  if (!main) return;
+
+  main.innerHTML = `
+    <p class="text-center mt-4">Googleアカウントでログインしてください</p>
+    <div id="google-login-container">
+      <div id="g_id_onload"
+           data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+           data-context="signin"
+           data-callback="onSignIn"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-shape="rectangular"
+           data-theme="outline"
+           data-text="signin_with"
+           data-size="large"
+           data-logo_alignment="right">
+      </div>
+    </div>
+  `;
+}
+
   
   // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
   function isAllowedChildOrigin(origin) {
@@ -413,14 +440,14 @@
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
-    // 未ログインは即戻す
+    // 未ログインはログインUIへ
     const email = localStorage.getItem("userEmail") || "";
     if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログイン → ログインへ戻す");
-      hardResetToIndex();
+      console.warn("[PARENT] navigateTo: 未ログイン → ログイン画面を表示");
+      showLoginPrompt();   // ← index に戻すのではなくログインUIを表示
       return;
     }
-  
+
     const current = pageFromLocation();
     const currentFrame = framePage();
     if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
@@ -639,6 +666,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
