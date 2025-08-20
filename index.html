@@ -402,6 +402,9 @@
 
   //ログイン画面を表示
   function showLoginPrompt() {
+    console.log("showLoginPrompt() called");
+    console.log("hero:", hero);
+    console.log("google.accounts.id:", window.google?.accounts?.id);
     // hero の下に差し込む
     const hero = document.querySelector(".hero");
     if (!hero) {
@@ -720,6 +723,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
