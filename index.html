@@ -153,7 +153,8 @@
            data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
            data-context="signin"
            data-callback="onSignIn"
-           data-auto_prompt="false">
+           data-auto_prompt="false"
+           data-use_fedcm_for_prompt="true">
       </div>
       <div class="g_id_signin"
            data-type="standard"
@@ -238,6 +239,19 @@
   }
   
   // --- Google Sign-In コールバック（差し替え）---
+  // ===== サインイン待ちキュー =====
+  let _afterSignInQueue = [];
+  function ensureSignedIn(runAfter) {
+    if (window.userEmail) { runAfter?.(); return; }
+    _afterSignInQueue.push(runAfter);
+  
+    // サイレント復元（FedCM/One Tap）。右上がログイン済みなら onSignIn が走る
+    try { window.google?.accounts?.id?.prompt?.(); } catch (_) {}
+  
+    // 見た目も促す
+    showInlineLoginPrompt();
+  }
+
   function onSignIn(response) {
     const payload = parseGoogleCredential(response?.credential);
     const email = payload?.email || "";
@@ -246,13 +260,14 @@
       showLoginPrompt();
       return;
     }
-  
-    // localStorage保存はやめる
     window.userEmail = email;
-  
     console.log("✅ Logged in as:", email);
   
-    // 次の画面へ
+    // 待機中の処理を実行
+    const q = _afterSignInQueue.splice(0);
+    q.forEach(fn => { try { fn?.(); } catch(e) { console.warn(e); } });
+  
+    // 画面制御
     setTimeout(routeAfterLogin, 0);
   }
 
@@ -260,12 +275,11 @@
   // ※ 親(GitHub)では google.script.run は使えないので呼ばない！
   //   認可チェックは iframe(子/GAS) が受け取って実施する。
   function routeAfterLogin() {
-    const email = window.userEmail || localStorage.getItem("userEmail");
-    if (!email) {
-      console.warn("[routeAfterLogin] email not found → showLoginPrompt");
-      showLoginPrompt();
-      return;
-    }
+    if (!window.userEmail) {
+       console.warn("[PARENT] navigateTo: 未ログイン → サインイン待機");
+       ensureSignedIn(() => navigateTo(page, push, params)); // 一度だけ戻ってくる
+       return;
+     }
   
     // ログイン後は常に index（親UIトップ）に戻す
     hardResetToIndex();
@@ -394,6 +408,7 @@
       window.google.accounts.id.initialize({
         client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
         callback: onSignIn,
+        use_fedcm_for_prompt: true,
       });
   
       window.google.accounts.id.renderButton(
@@ -449,21 +464,18 @@
     _childOrigin = ev.origin;
     console.log(" child-ready 受信: origin=", _childOrigin);
   
-    const email = localStorage.getItem("userEmail") || "";
-    if (!email) {
-      console.log("[PARENT] email 未保存 → iframe を閉じてログイン画面へ");
-      hardResetToIndex();
-      return;
-    }
-    try {
-      _childWin.postMessage(
-        { type: "misemaru:email", email, page: framePage() || pageFromLocation() || "" },
-        _childOrigin
-      );
-      console.log("[PARENT] misemaru:email を返信 →", _childOrigin, email);
-    } catch (e) {
-      console.error("[PARENT] email返信失敗:", e);
-    }
+    const postEmail = () => {
+      const email2 = window.userEmail || "";
+      if (!email2) return; // キャンセル等
+      try {
+        _childWin.postMessage(
+            { type:"misemaru:email", email: email2, page: framePage() || pageFromLocation() || "" },
+          _childOrigin
+        );
+        console.log("[PARENT] misemaru:email 送信 →", _childOrigin, email2);
+      } catch (e) { console.error("[PARENT] email返信失敗:", e); }
+    };
+    if (window.userEmail) postEmail(); else ensureSignedIn(postEmail);
   });
 
   // ====== ページ遷移処理 ======
@@ -590,7 +602,7 @@ window.addEventListener("message", (e) => {
   } catch (err) {}
 
   if (d.type === "misemaru:request-email") {
-    const email = localStorage.getItem("userEmail") || "";
+    const email = window.userEmail || "";
     console.log("[PARENT] request-email 受信, email=", email);
     e.source.postMessage({ type: "misemaru:email", email }, e.origin);
     return;
@@ -696,6 +708,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
