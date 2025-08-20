@@ -497,7 +497,7 @@
     const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
     if (!email) {
       console.warn("[PARENT] navigateTo: 未ログイン → ナビゲーション中断", { page, push, params });
-      showLoginPrompt();
+      showInlineLoginPrompt();
       return;
     }
   
@@ -719,6 +719,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
