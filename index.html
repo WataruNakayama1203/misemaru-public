@@ -471,13 +471,13 @@
     if (!page) { hardResetToIndex(); return; }
   
     // 未ログインはログインUIへ
-     const email = localStorage.getItem("userEmail") || "";
-      if (!email) {
-        console.warn("[PARENT] navigateTo: 未ログイン → ログインメッセージを表示");
-        showInlineLoginPrompt();
-        return;
-      }
-
+    const email = window.userEmail || "";  // ← localStorageやめる
+    if (!email) {
+      console.warn("[PARENT] navigateTo: 未ログイン → ログインメッセージを表示");
+      showInlineLoginPrompt();
+      return;
+    }
+  
     const current = pageFromLocation();
     const currentFrame = framePage();
     if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
@@ -696,6 +696,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
