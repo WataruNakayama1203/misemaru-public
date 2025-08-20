@@ -474,19 +474,26 @@
     // ====== frame.name に安全に入れておく（保険用） ======
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
+    
       (function setEmailToFrameName() {
         const email = localStorage.getItem("userEmail") || "";
-        const payload = email ? `me:${encodeURIComponent(email)}` : "";
+        const payload = {
+          type: "misemaru-email",
+          email,
+          page
+        };
         try {
-          frame.name = payload;                   // プロパティ
-          frame.setAttribute("name", payload);    // 属性（保険）
+          frame.name = JSON.stringify(payload);   // JSON を直接セット
+          frame.setAttribute("name", frame.name); // 保険で属性にもセット
           console.log("[PARENT] frame.name セット:", frame.name);
         } catch (e) {
           console.warn("[PARENT] frame.name セット失敗:", e);
         }
       })();
+    
       setFrameUrlReplace(nextUrl);
     });
+
   
     // ====== 履歴処理 ======
     if (push) {
@@ -638,6 +645,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
