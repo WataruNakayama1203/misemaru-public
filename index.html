@@ -380,9 +380,6 @@
     } catch { return false; }
   }
   
-  let _childWin = null;
-  let _childOrigin = null;
-  
   window.addEventListener("message", (ev) => {
     const d = ev.data || {};
     if (d.type !== "misemaru:child-ready") return;
@@ -656,6 +653,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
