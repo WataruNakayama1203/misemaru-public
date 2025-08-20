@@ -374,31 +374,45 @@
 
   //ログイン画面を表示
   function showLoginPrompt() {
-  const main = document.getElementById("main"); // index.html 側のメインコンテナ
-  if (!main) return;
-
-  main.innerHTML = `
-    <p class="text-center mt-4">Googleアカウントでログインしてください</p>
-    <div id="google-login-container">
-      <div id="g_id_onload"
-           data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
-           data-context="signin"
-           data-callback="onSignIn"
-           data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-           data-type="standard"
-           data-shape="rectangular"
-           data-theme="outline"
-           data-text="signin_with"
-           data-size="large"
-           data-logo_alignment="right">
-      </div>
-    </div>
-  `;
-}
-
+    const main = document.getElementById("main");
+    if (!main) return;
   
+    main.innerHTML = `
+      <p class="text-center mt-4">Googleアカウントでログインしてください</p>
+      <div id="google-login-container">
+        <div id="g_id_onload"
+             data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+             data-context="signin"
+             data-callback="onSignIn"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="signin_with"
+             data-size="large"
+             data-logo_alignment="right">
+        </div>
+      </div>
+    `;
+  
+    // すでに GIS が読み込まれているなら再描画させる
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
+          callback: onSignIn,
+        });
+        window.google.accounts.id.renderButton(
+          document.querySelector(".g_id_signin"),
+          { theme: "outline", size: "large" }
+        );
+      } catch (err) {
+        console.error("Google Sign-In init error:", err);
+      }
+    }
+  }
   // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
   function isAllowedChildOrigin(origin) {
     try {
@@ -666,6 +680,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
