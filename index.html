@@ -362,7 +362,49 @@
       return new URL(frame?.src || "", location.origin).searchParams.get("page") || "";
     } catch { return ""; }
   };
-    
+  // ====== グローバル変数 ======
+  let _childWin = null;
+  let _childOrigin = null;
+  let navSeq = 0; // 既存のグローバル
+  
+  function isAllowedChildOrigin(origin) {
+    try {
+      const h = new URL(origin).hostname;
+      return (
+        origin.startsWith("https://script.google.com") ||
+        h.endsWith(".googleusercontent.com")
+      );
+    } catch { return false; }
+  }
+  
+  // ====== 一度だけグローバルに登録する ======
+  window.addEventListener("message", (ev) => {
+    const d = ev.data || {};
+    if (d?.type !== "misemaru:child-ready") return;
+  
+    if (!isAllowedChildOrigin(ev.origin)) {
+      console.warn("[PARENT] child-ready: 不許可オリジン", ev.origin);
+      return;
+    }
+  
+    _childWin = ev.source;
+    _childOrigin = ev.origin;
+    console.log("[PARENT] child-ready 受信: origin=", _childOrigin);
+  
+    const email = localStorage.getItem("userEmail") || "";
+    if (email) {
+      try {
+        _childWin.postMessage({ type: "misemaru:email", email }, _childOrigin);
+        console.log("[PARENT] misemaru:email を返信 →", _childOrigin, email);
+      } catch (e) {
+        console.error("[PARENT] email返信失敗:", e);
+      }
+    } else {
+      console.log("[PARENT] email 未保存のため返信保留");
+    }
+  });
+  
+  // ====== ページ遷移処理 ======
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
@@ -429,19 +471,12 @@
     frame.addEventListener("load", onLoad,  { once: true });
     frame.addEventListener("error", onError, { once: true });
   
-    // URLに出さずに iframe へ値を渡す
-    const email = localStorage.getItem("userEmail") || "";
-    try {
-      frame.name = JSON.stringify({ type: "misemaru-email", email });
-    } catch (_) {
-      frame.name = email; // 念のためプレーン文字列 fallback
-    }
-  
+    // ====== frame.name に安全に入れておく（保険用） ======
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
       (function setEmailToFrameName() {
         const email = localStorage.getItem("userEmail") || "";
-        const payload = email ? `me:${encodeURIComponent(email)}` : ""; // シンプル & 安全
+        const payload = email ? `me:${encodeURIComponent(email)}` : "";
         try {
           frame.name = payload;                   // プロパティ
           frame.setAttribute("name", payload);    // 属性（保険）
@@ -453,6 +488,7 @@
       setFrameUrlReplace(nextUrl);
     });
   
+    // ====== 履歴処理 ======
     if (push) {
       const u = new URL(location.href);
       u.searchParams.set("page", page);
@@ -462,8 +498,12 @@
       }
       history.pushState({ page, params }, "", u.toString());
     }
-  }
   
+    // ====== 子切替なのでハンドシェイク状態をクリア ======
+    _childWin = null;
+    _childOrigin = null;
+  }
+
   // ========= 設定 =========
   // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
   const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
@@ -598,6 +638,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
