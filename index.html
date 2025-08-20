@@ -497,11 +497,8 @@
     // まず email を一元取得（window → sessionStorage の順）
     const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
     if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログイン → サインイン待機キュー投入", { page, push, params });
-      ensureSignedIn(() => {
-        console.log("[PARENT] ensureSignedIn→navigateTo再実行", { page });
-        navigateTo(page, push, params);
-      });
+      console.warn("[PARENT] navigateTo: 未ログイン → ナビゲーション中断", { page, push, params });
+      // 👆 ここで強制ログイン画面に飛ばさない。単に return。
       return;
     }
   
@@ -723,4 +720,5 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
