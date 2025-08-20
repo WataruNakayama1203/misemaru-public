@@ -282,6 +282,13 @@
     })();
 
      window.addEventListener('DOMContentLoaded', () => {
+      if (window.google?.accounts?.id) {
+        google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.log("[LOGIN] サイレントログインなし");
+          }
+        });
+      }
       const u = new URL(location.href);
       const p = u.searchParams.get('page');
       if (!p) return;
@@ -689,6 +696,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
