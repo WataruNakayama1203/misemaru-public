@@ -212,6 +212,12 @@
   </div>
 
   <script>
+  // === boot: sessionStorage から復元 ===
+  try {
+    window.userEmail = sessionStorage.getItem("userEmail") || "";
+    if (window.userEmail) console.log("[LOGIN] restored from sessionStorage:", window.userEmail);
+  } catch (e) { /* no-op */ }
+
    // --- Base64URL → JSON デコード共通 ---
   function decodeBase64Url(b64url) {
     if (!b64url || typeof b64url !== "string") return "";
@@ -245,7 +251,13 @@
     
   function ensureSignedIn(runAfter) {
    if (window.userEmail) { runAfter?.(); return; }
-   _afterSignInQueue.push(runAfter);
+    // ← ここで即復元（リロード直後など）
+    try {
+      const s = sessionStorage.getItem("userEmail");
+      if (s) { window.userEmail = s; runAfter?.(); return; }
+    } catch (e) {}
+  
+    _afterSignInQueue.push(runAfter);
    if (!_promptInFlight) {
      _promptInFlight = true;
      console.log("[LOGIN] prompt() start");
@@ -273,13 +285,12 @@
       return;
     }
     window.userEmail = email;
+    try { sessionStorage.setItem("userEmail", email); } catch (e) {}
     console.log("✅ Logged in as:", email);
   
-    // 待機中の処理を実行
     const q = _afterSignInQueue.splice(0);
     q.forEach(fn => { try { fn?.(); } catch(e) { console.warn(e); } });
   
-    // 画面制御
     setTimeout(routeAfterLogin, 0);
   }
 
@@ -472,32 +483,27 @@
     console.log(" child-ready 受信: origin=", _childOrigin);
   
     const postEmail = () => {
-      const email2 = window.userEmail || "";
-      if (!email2) return; // キャンセル等
-      try {
-        _childWin.postMessage(
-            { type:"misemaru:email", email: email2, page: framePage() || pageFromLocation() || "" },
-          _childOrigin
-        );
-        console.log("[PARENT] misemaru:email 送信 →", _childOrigin, email2);
-      } catch (e) { console.error("[PARENT] email返信失敗:", e); }
+      const email2 = window.userEmail || sessionStorage.getItem("userEmail") || "";
+      if (!email2) return;
+      _childWin.postMessage({ type:"misemaru:email", email: email2, page: framePage() || pageFromLocation() || "" }, _childOrigin);
     };
-    if (window.userEmail) postEmail(); else ensureSignedIn(postEmail);
+    if (window.userEmail || sessionStorage.getItem("userEmail")) postEmail(); else ensureSignedIn(postEmail);
   });
 
   // ====== ページ遷移処理 ======
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
-    // 未ログインなら一度だけサイレント復元を試み、完了後に再実行
-    if (!window.userEmail) {
-       console.warn("[PARENT] navigateTo: 未ログイン → サインイン待機キュー投入", { page, push, params });
-       ensureSignedIn(() => {
-         console.log("[PARENT] ensureSignedIn→navigateTo再実行", { page });
-         navigateTo(page, push, params);
-       });
-       return;
-     }
+    // まず email を一元取得（window → sessionStorage の順）
+    const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
+    if (!email) {
+      console.warn("[PARENT] navigateTo: 未ログイン → サインイン待機キュー投入", { page, push, params });
+      ensureSignedIn(() => {
+        console.log("[PARENT] ensureSignedIn→navigateTo再実行", { page });
+        navigateTo(page, push, params);
+      });
+      return;
+    }
   
     const current = pageFromLocation();
     const currentFrame = framePage();
@@ -569,7 +575,7 @@
       } catch (e) {
         console.warn("[PARENT] frame.name セット失敗:", e);
       }
-      setFrameUrlReplace(nextUrl); // ← 呼び出しは一度だけ
+      setFrameUrlReplace(nextUrl);
     });
   
     if (push) {
@@ -611,7 +617,7 @@ window.addEventListener("message", (e) => {
   } catch (err) {}
 
   if (d.type === "misemaru:request-email") {
-    const email = window.userEmail || "";
+    const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
     console.log("[PARENT] request-email 受信, email=", email);
     e.source.postMessage({ type: "misemaru:email", email }, e.origin);
     return;
@@ -717,3 +723,4 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
