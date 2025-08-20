@@ -379,38 +379,32 @@
   
     main.innerHTML = `
       <p class="text-center mt-4">Googleアカウントでログインしてください</p>
-      <div id="google-login-container">
-        <div id="g_id_onload"
-             data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
-             data-context="signin"
-             data-callback="onSignIn"
-             data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-shape="rectangular"
-             data-theme="outline"
-             data-text="signin_with"
-             data-size="large"
-             data-logo_alignment="right">
-        </div>
-      </div>
+      <div id="login-btn"></div>
     `;
   
-    // すでに GIS が読み込まれているなら再描画させる
+    // GIS API がロードされているか確認
     if (window.google && window.google.accounts && window.google.accounts.id) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
-          callback: onSignIn,
-        });
-        window.google.accounts.id.renderButton(
-          document.querySelector(".g_id_signin"),
-          { theme: "outline", size: "large" }
-        );
-      } catch (err) {
-        console.error("Google Sign-In init error:", err);
-      }
+      window.google.accounts.id.initialize({
+        client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
+        callback: onSignIn,
+      });
+  
+      // SignIn ボタンを描画
+      window.google.accounts.id.renderButton(
+        document.getElementById("login-btn"),
+        {
+          theme: "outline",
+          size: "large",
+          text: "signin_with",
+          shape: "rectangular",
+          logo_alignment: "right",
+        }
+      );
+  
+      // 自動プロンプトも必要なら呼べる
+      // window.google.accounts.id.prompt();
+    } else {
+      console.error("❌ Google Identity Services がロードされていません");
     }
   }
   // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
@@ -680,6 +674,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
