@@ -242,23 +242,22 @@
   // --- Google Sign-In コールバック（差し替え）---
   function onSignIn(response) {
     const payload = parseGoogleCredential(response?.credential);
-    const email = payload?.email || payload?.emailAddress || "";
+    const email = payload?.email || "";
     if (!email) {
-      console.error("[LOGIN] email not found in credential payload:", payload);
       alert("メールアドレスが取得できませんでした。もう一度ログインしてください。");
       showLoginPrompt();
       return;
     }
   
-    // 保存 → 画面遷移
-    window.userEmail = email;                      // メモリ
-    localStorage.setItem("userEmail", email);      // 永続
+    // localStorage保存はやめる
+    window.userEmail = email;
+  
     console.log("✅ Logged in as:", email);
   
-    // すぐ navigateTo を叩くと競合するケースがあるのでイベントループ1周待つ
+    // 次の画面へ
     setTimeout(routeAfterLogin, 0);
   }
-  
+
   // --- ログイン後の画面制御（差し替え）---
   // ※ 親(GitHub)では google.script.run は使えないので呼ばない！
   //   認可チェックは iframe(子/GAS) が受け取って実施する。
@@ -692,6 +691,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
