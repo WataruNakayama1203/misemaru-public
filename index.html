@@ -505,20 +505,6 @@
     }
   }
 
-  
-    // ====== 履歴 push ======
-    if (push) {
-      const u = new URL(location.href);
-      u.searchParams.set("page", page);
-      for (const [k, v] of Object.entries(params)) {
-        if (v != null && v !== "") u.searchParams.set(k, String(v));
-        else u.searchParams.delete(k);
-      }
-      history.pushState({ page, params }, "", u.toString());
-    }
-  }
-
-
   // ========= 設定 =========
   // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
   const HOME_URL = "https://watarunakayama1203.github.io/misemaru-public/";
@@ -653,6 +639,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
