@@ -213,81 +213,75 @@
   </div>
 
   <script>
-    let userEmail = null;
-  /*
-    function onSignIn(response) {
-      const credential = response.credential;
-      const payload = JSON.parse(atob(credential.split(".")[1]));
-      userEmail = payload.email;
-      console.log("✅ Logged in as:", userEmail);
+   // --- Base64URL → JSON デコード共通 ---
+  function decodeBase64Url(b64url) {
+    if (!b64url || typeof b64url !== "string") return "";
+    // Base64URL → Base64 へ変換（-/_ とパディング）
+    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/")
+                      .padEnd(Math.ceil(b64url.length / 4) * 4, "=");
+    // Unicode安全デコード
+    try {
+      return decodeURIComponent(escape(atob(b64)));
+    } catch (e) {
+      console.warn("[LOGIN] atob decode failed:", e);
+      return "";
+    }
+  }
+  function parseGoogleCredential(credential) {
+    try {
+      const parts = String(credential || "").split(".");
+      if (parts.length < 2) throw new Error("invalid jwt");
+      const json = decodeBase64Url(parts[1]);
+      return json ? JSON.parse(json) : null;
+    } catch (e) {
+      console.warn("[LOGIN] credential parse failed:", e);
+      return null;
+    }
+  }
   
-      // ログイン後の画面制御
-      routeAfterLogin();
+  // --- Google Sign-In コールバック（差し替え）---
+  function onSignIn(response) {
+    const payload = parseGoogleCredential(response?.credential);
+    const email = payload?.email || payload?.emailAddress || "";
+    if (!email) {
+      console.error("[LOGIN] email not found in credential payload:", payload);
+      alert("メールアドレスが取得できませんでした。もう一度ログインしてください。");
+      showLoginPrompt();
+      return;
     }
-    */
-
-    function onSignIn(response) {
-      const credential = response.credential;
-      const payload = JSON.parse(atob(credential.split(".")[1]));
-      const email = payload.email;
-    
-      window.userEmail = email;
-      localStorage.setItem("userEmail", email); // 次回も使える
-      console.log("✅ Logged in as:", email);
-    
-      routeAfterLogin();
-    }
-    
-    function routeAfterLogin() {
-      const email = window.userEmail || localStorage.getItem("userEmail");
-      if (!email) {
-        showLoginPrompt();
-        return;
-      }
-    
-      // GAS に問い合わせ
-      google.script.run
-        .withSuccessHandler(role => {
-          console.log("🎭 Role from GAS:", role);
-          const pageName = (new URL(location.href)).searchParams.get("page") || "";
-    
-          if (role === "admin" && pageName.endsWith("_admin")) {
-            // admin専用ページOK
-          } else if ((role === "admin" || role === "staff") && pageName.endsWith("_staff")) {
-            // staffページOK
-          } else {
-            showForbidden();
-          }
-        })
-        .checkRole(email);
-    }
-
   
-    function showLoginPrompt() {
-      document.getElementById("main").innerHTML = `
-        <p class="text-center mt-4">Googleアカウントでログインしてください</p>
-        <div id="g_id_onload"
-             data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
-             data-context="signin"
-             data-callback="onSignIn"
-             data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-shape="rectangular"
-             data-theme="outline"
-             data-text="signin_with"
-             data-size="large"
-             data-logo_alignment="left">
-        </div>
-      `;
+    // 保存 → 画面遷移
+    window.userEmail = email;                      // メモリ
+    localStorage.setItem("userEmail", email);      // 永続
+    console.log("✅ Logged in as:", email);
+  
+    // すぐ navigateTo を叩くと競合するケースがあるのでイベントループ1周待つ
+    setTimeout(routeAfterLogin, 0);
+  }
+  
+  // --- ログイン後の画面制御（差し替え）---
+  // ※ 親(GitHub)では google.script.run は使えないので呼ばない！
+  //   認可チェックは iframe(子/GAS) が受け取って実施する。
+  function routeAfterLogin() {
+    const email = window.userEmail || localStorage.getItem("userEmail");
+    if (!email) {
+      console.warn("[routeAfterLogin] email not found → showLoginPrompt");
+      showLoginPrompt();
+      return;
     }
-    
-    function showForbidden() {
-      document.getElementById("main").innerHTML = `
-        <p class="text-center mt-4 text-danger">権限がありません</p>
-      `;
+  
+    // URL ?page=xxxx があれば優先、なければデフォルトページへ
+    const u = new URL(location.href);
+    const requested = u.searchParams.get("page");
+    const targetPage = requested || "10_availability_staff";
+  
+    try {
+      navigateTo(targetPage, true, {});  // ここだけでOK（子が canAccessPage する）
+    } catch (e) {
+      console.error("[routeAfterLogin] navigateTo error:", e);
     }
+  }
+
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
   
     // ★ これが“index（親）のベースURL）”。?page を一切含まないURLに正規化
@@ -378,42 +372,55 @@
     } catch { return false; }
   }
   
-  // ====== 一度だけグローバルに登録する ======
+  // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
+  function isAllowedChildOrigin(origin) {
+    try {
+      const h = new URL(origin).hostname;
+      return origin.startsWith("https://script.google.com") || h.endsWith(".googleusercontent.com");
+    } catch { return false; }
+  }
+  
+  let _childWin = null;
+  let _childOrigin = null;
+  
   window.addEventListener("message", (ev) => {
     const d = ev.data || {};
-    if (d?.type !== "misemaru:child-ready") return;
+    if (d.type !== "misemaru:child-ready") return;
   
     if (!isAllowedChildOrigin(ev.origin)) {
       console.warn("[PARENT] child-ready: 不許可オリジン", ev.origin);
       return;
     }
-  
     _childWin = ev.source;
     _childOrigin = ev.origin;
     console.log("[PARENT] child-ready 受信: origin=", _childOrigin);
   
     const email = localStorage.getItem("userEmail") || "";
-    if (email) {
-      try {
-        _childWin.postMessage({ type: "misemaru:email", email }, _childOrigin);
-        console.log("[PARENT] misemaru:email を返信 →", _childOrigin, email);
-      } catch (e) {
-        console.error("[PARENT] email返信失敗:", e);
-      }
-    } else {
-      console.log("[PARENT] email 未保存のため返信保留");
+    if (!email) {
+      console.log("[PARENT] email 未保存 → iframe を閉じてログイン画面へ");
+      hardResetToIndex();
+      return;
+    }
+    try {
+      _childWin.postMessage(
+        { type: "misemaru:email", email, page: framePage() || pageFromLocation() || "" },
+        _childOrigin
+      );
+      console.log("[PARENT] misemaru:email を返信 →", _childOrigin, email);
+    } catch (e) {
+      console.error("[PARENT] email返信失敗:", e);
     }
   });
-  
+
   // ====== ページ遷移処理 ======
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
-    // ====== ログイン確認 ======
+    // 未ログインは即戻す
     const email = localStorage.getItem("userEmail") || "";
     if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログインのため中止 → ログイン画面へ戻す");
-      hardResetToIndex();   // ← ここでログイン画面に戻す
+      console.warn("[PARENT] navigateTo: 未ログイン → ログインへ戻す");
+      hardResetToIndex();
       return;
     }
   
@@ -424,15 +431,11 @@
     const nextUrl = urlFor(page, params);
     navSeq++; const mySeq = navSeq;
   
-    // ローディング UI 管理
     const wasFullscreen = app.classList.contains("fullscreen");
     let overlayTimer;
     if (wasFullscreen) {
       inlineOverlay?.classList.remove("show");
-      overlayTimer = setTimeout(() => {
-        app.classList.add("loading");
-        inlineOverlay?.classList.add("show");
-      }, 220);
+      overlayTimer = setTimeout(() => { app.classList.add("loading"); inlineOverlay?.classList.add("show"); }, 220);
     } else {
       overlay?.classList.add("hidden");
       overlayTimer = setTimeout(() => overlay?.classList.remove("hidden"), 220);
@@ -448,7 +451,6 @@
     const onLoad = () => {
       if (mySeq !== navSeq) return;
       cleanup();
-  
       if (!wasFullscreen) {
         document.body.classList.add("app-mode");
         app.classList.remove("hidden");
@@ -481,10 +483,9 @@
     frame.addEventListener("load", onLoad,  { once: true });
     frame.addEventListener("error", onError, { once: true });
   
-    // ====== frame.name に安全にセット ======
+    // 保険で window.name にも埋める（子側が拾えることがある）
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
-  
       try {
         const payload = { type: "misemaru-email", email, page };
         frame.name = JSON.stringify(payload);
@@ -493,9 +494,20 @@
       } catch (e) {
         console.warn("[PARENT] frame.name セット失敗:", e);
       }
-  
-      setFrameUrlReplace(nextUrl);
+      setFrameUrlReplace(nextUrl); // ← 呼び出しは一度だけ
     });
+  
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set("page", page);
+      for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== "") u.searchParams.set(k, String(v));
+        else u.searchParams.delete(k);
+      }
+      history.pushState({ page, params }, "", u.toString());
+    }
+  }
+
   
     // ====== 履歴 push ======
     if (push) {
@@ -644,6 +656,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
