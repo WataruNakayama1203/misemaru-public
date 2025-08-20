@@ -270,16 +270,8 @@
       return;
     }
   
-    // URL ?page=xxxx があれば優先、なければデフォルトページへ
-    const u = new URL(location.href);
-    const requested = u.searchParams.get("page");
-    const targetPage = requested || "10_availability_staff";
-  
-    try {
-      navigateTo(targetPage, true, {});  // ここだけでOK（子が canAccessPage する）
-    } catch (e) {
-      console.error("[routeAfterLogin] navigateTo error:", e);
-    }
+    // ログイン後は常に index（親UIトップ）に戻す
+    hardResetToIndex();
   }
 
     const GAS_BASE = "https://script.google.com/macros/s/AKfycbwW1ELjbBf1AAwr5H6HPsG-IgQXGOD7RBYhvbmmjCCUQBBbLzD1vmF9KYuVJ4j2zw/exec?key=ZDNhYWMzNGItMmU1OC00YTA2LTk4ZDctZmFlN2JhZGZhODg3";
@@ -451,7 +443,7 @@
     }
     _childWin = ev.source;
     _childOrigin = ev.origin;
-    console.log("[PARENT] child-ready 受信: origin=", _childOrigin);
+    console.log(" child-ready 受信: origin=", _childOrigin);
   
     const email = localStorage.getItem("userEmail") || "";
     if (!email) {
@@ -700,6 +692,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
