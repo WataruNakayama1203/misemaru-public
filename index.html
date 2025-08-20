@@ -415,6 +415,24 @@
     }
   }
 
+  function showInlineLoginPrompt() {
+    // すでに表示済みなら何もしない
+    if (document.getElementById("inline-login-prompt")) return;
+  
+    const hero = document.querySelector(".hero");
+    if (!hero) return;
+  
+    const prompt = document.createElement("div");
+    prompt.id = "inline-login-prompt";
+    prompt.className = "text-center my-3";
+    prompt.innerHTML = `
+      <p class="text-danger fw-bold">Googleアカウントでログインしてください</p>
+    `;
+  
+    // heroのすぐ下に挿入
+    hero.insertAdjacentElement("afterend", prompt);
+  }
+
   // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
   function isAllowedChildOrigin(origin) {
     try {
@@ -457,12 +475,12 @@
     if (!page) { hardResetToIndex(); return; }
   
     // 未ログインはログインUIへ
-    const email = localStorage.getItem("userEmail") || "";
-    if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログイン → ログイン画面を表示する");
-      showLoginPrompt();   // ← index に戻すのではなくログインUIを表示
-      return;
-    }
+     const email = localStorage.getItem("userEmail") || "";
+      if (!email) {
+        console.warn("[PARENT] navigateTo: 未ログイン → ログインメッセージを表示");
+        showInlineLoginPrompt();
+        return;
+      }
 
     const current = pageFromLocation();
     const currentFrame = framePage();
@@ -682,6 +700,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
