@@ -362,6 +362,7 @@
       return new URL(frame?.src || "", location.origin).searchParams.get("page") || "";
     } catch { return ""; }
   };
+ 
   // ====== グローバル変数 ======
   let _childWin = null;
   let _childOrigin = null;
@@ -408,14 +409,6 @@
   function navigateTo(page, push = true, params = {}) {
     if (!page) { hardResetToIndex(); return; }
   
-    // ====== ログイン確認 ======
-    const email = localStorage.getItem("userEmail") || "";
-    if (!email) {
-      console.warn("[PARENT] navigateTo: 未ログインのため中止 → ログイン画面へ戻す");
-      hardResetToIndex();   // ← ここでログイン画面に戻す
-      return;
-    }
-  
     const current = pageFromLocation();
     const currentFrame = framePage();
     if (current === page && currentFrame === page && app.classList.contains("fullscreen")) return;
@@ -423,7 +416,6 @@
     const nextUrl = urlFor(page, params);
     navSeq++; const mySeq = navSeq;
   
-    // ローディング UI 管理
     const wasFullscreen = app.classList.contains("fullscreen");
     let overlayTimer;
     if (wasFullscreen) {
@@ -480,34 +472,28 @@
     frame.addEventListener("load", onLoad,  { once: true });
     frame.addEventListener("error", onError, { once: true });
   
-    // ====== frame.name に安全にセット ======
+    // ====== frame.name に安全に入れておく（保険用） ======
     requestAnimationFrame(() => {
       console.log("[PARENT] setFrameUrlReplace:", nextUrl);
-  
-      try {
-        const payload = { type: "misemaru-email", email, page };
-        frame.name = JSON.stringify(payload);
-        frame.setAttribute("name", frame.name);
-        console.log("[PARENT] frame.name セット:", frame.name);
-      } catch (e) {
-        console.warn("[PARENT] frame.name セット失敗:", e);
-      }
-  
+    
+      (function setEmailToFrameName() {
+        const email = localStorage.getItem("userEmail") || "";
+        const payload = {
+          type: "misemaru-email",
+          email,
+          page
+        };
+        try {
+          frame.name = JSON.stringify(payload);   // JSON を直接セット
+          frame.setAttribute("name", frame.name); // 保険で属性にもセット
+          console.log("[PARENT] frame.name セット:", frame.name);
+        } catch (e) {
+          console.warn("[PARENT] frame.name セット失敗:", e);
+        }
+      })();
+    
       setFrameUrlReplace(nextUrl);
     });
-  
-    // ====== 履歴 push ======
-    if (push) {
-      const u = new URL(location.href);
-      u.searchParams.set("page", page);
-      for (const [k, v] of Object.entries(params)) {
-        if (v != null && v !== "") u.searchParams.set(k, String(v));
-        else u.searchParams.delete(k);
-      }
-      history.pushState({ page, params }, "", u.toString());
-    }
-  }
-
 
   // ========= 設定 =========
   // テナントごとにトップへ戻すURL（GitHub Pages等）。未設定なら index に戻す
@@ -643,6 +629,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
