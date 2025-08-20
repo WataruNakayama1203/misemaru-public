@@ -137,12 +137,15 @@
     top: 0.5rem;
     right: 0rem;
   }
-  
-  /* 読み込み直後に横幅を広げないため 
-  #google-login-container .g_id_signin {
-    min-width: 200px;
-    max-width: 250px;
-    }*/
+  #google-login-container {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .18s ease;
+  }
+  #google-login-container.is-ready {
+    opacity: 1;
+    visibility: visible;
+  }
 </style>
 </head>
 <body>
@@ -156,14 +159,9 @@
            data-auto_prompt="false"
            data-use_fedcm_for_prompt="true">
       </div>
-      <div class="g_id_signin"
-           data-type="standard"
-           data-shape="rectangular"
-           data-theme="outline"
-           data-text="signin_with"
-           data-size="large"
-           data-logo_alignment="right">
-      </div>
+      <div id="signin-button"></div>
+      <!-- 任意：小さな「アカウント切替」UIを付けたい場合 -->
+      <!-- <a href="#" id="switch-account" class="small text-muted">アカウント切替</a> -->
     </div>
     <!-- ヘッダー（親UI） -->
     <div class="hero">
@@ -275,22 +273,25 @@
    showInlineLoginPrompt();
   }
 
+  let _lastEmailShownOnButton = ""; // 右上に表示されていた想定のメール（初期は空）
+  
   function onSignIn(response) {
     const payload = parseGoogleCredential(response?.credential);
-    console.log("[LOGIN] onSignIn payload", payload);
     const email = payload?.email || "";
-    if (!email) {
-      alert("メールアドレスが取得できませんでした。もう一度ログインしてください。");
-      showLoginPrompt();
-      return;
+    if (!email) { alert("メールアドレスが取得できませんでした。もう一度ログインしてください。"); showLoginPrompt(); return; }
+  
+    // もし「表示されていたアカウント名」と実際がズレたら、disableAutoSelect→再描画
+    if (_lastEmailShownOnButton && _lastEmailShownOnButton !== email) {
+      resetGoogleSignInButton();
     }
+    _lastEmailShownOnButton = email;
+  
     window.userEmail = email;
-    try { sessionStorage.setItem("userEmail", email); } catch (e) {}
+    try { sessionStorage.setItem("userEmail", email); } catch(_) {}
     console.log("✅ Logged in as:", email);
   
     const q = _afterSignInQueue.splice(0);
     q.forEach(fn => { try { fn?.(); } catch(e) { console.warn(e); } });
-  
     setTimeout(routeAfterLogin, 0);
   }
 
@@ -313,7 +314,45 @@
       return u.origin + u.pathname;           // 末尾スラなし/ありはどちらでもOK
     })();
 
+    // === 右上ボタン：描画 & フェードイン制御 ===
+    function renderTopRightButton() {
+      const wrap = document.getElementById("google-login-container");
+      const target = document.getElementById("signin-button");
+      if (!wrap || !target) return;
+    
+      // まず非表示（CSSで opacity:0 になっている）
+      wrap.classList.remove("is-ready");
+    
+      // GIS 初期化（onSignIn は既存のものを使用）
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: "982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com",
+          callback: onSignIn,
+          use_fedcm_for_prompt: true,
+        });
+    
+        // 手動で描画
+        target.innerHTML = ""; // クリアしてから再描画
+        window.google.accounts.id.renderButton(target, {
+          theme: "outline",
+          size: "large",
+          text: "signin_with",
+          shape: "rectangular",
+          logo_alignment: "right",
+        });
+    
+        // 次フレームでフェードイン（レイアウト確定後）
+        requestAnimationFrame(() => wrap.classList.add("is-ready"));
+      }
+    }
+    
+    function resetGoogleSignInButton() {
+      try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch (_) {}
+      renderTopRightButton(); // 再描画でボタンの「表示中のアカウント」もリセットされる
+    }
+  
      window.addEventListener('DOMContentLoaded', () => {
+      renderTopRightButton();
       if (window.google?.accounts?.id) {
         google.accounts.id.prompt((notification) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
@@ -719,6 +758,7 @@ window.addEventListener("message", (e) => {
 
 </body>
 </html>
+
 
 
 
