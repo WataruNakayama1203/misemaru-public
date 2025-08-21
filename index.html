@@ -147,6 +147,24 @@
 </head>
 <body>
   <div id="wrap" class="container container-narrow py-0">
+    <!-- Google Sign-In ボタン用ラッパ -->
+    <div id="google-login-container">
+      <div id="g_id_onload"
+           data-client_id="982431897942-epgcq6gn01c19oormn1q8d8gh6csvr54.apps.googleusercontent.com"
+           data-context="signin"
+           data-callback="onSignIn"
+           data-auto_prompt="false"
+           data-use_fedcm_for_prompt="true">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-shape="rectangular"
+           data-theme="outline"
+           data-text="signin_with"
+           data-size="large"
+           data-logo_alignment="right">
+      </div>
+    </div>
     <!-- ヘッダー（親UI） -->
     <div class="hero">
       <img src="https://raw.githubusercontent.com/WataruNakayama1203/misemaru-cloud-assets/main/misemaru_top2.png"
@@ -320,59 +338,20 @@ function handleAccountSwitch(newEmail) {
   function onSignIn(response) {
     const payload = parseGoogleCredential(response?.credential);
     console.log("[LOGIN] onSignIn payload", payload);
-  
     const email = payload?.email || "";
-    const exp   = payload?.exp   || 0; // JWTの有効期限（秒）
-  
     if (!email) {
       alert("メールアドレスが取得できませんでした。もう一度ログインしてください。");
       showLoginPrompt();
       return;
     }
-  
-    // windowに保持
     window.userEmail = email;
-  
-    // 有効期限付きで保存
-    try {
-      sessionStorage.setItem("gsiAuth", JSON.stringify({
-        email,
-        exp
-      }));
-    } catch (e) {
-      console.warn("[LOGIN] sessionStorage 保存失敗", e);
-    }
-  
+    try { sessionStorage.setItem("userEmail", email); } catch (e) {}
     console.log("✅ Logged in as:", email);
-  
-    // 切替時処理（前アカウントの revoke / disableAutoSelect）
     handleAccountSwitch(email);
-  
-    // 待機キュー実行
     const q = _afterSignInQueue.splice(0);
-    q.forEach(fn => {
-      try { fn?.(); } catch (e) { console.warn(e); }
-    });
+    q.forEach(fn => { try { fn?.(); } catch(e) { console.warn(e); } });
   
-    // 遷移
     setTimeout(routeAfterLogin, 0);
-  }
-
-  function restoreLoginState() {
-    try {
-      const raw = sessionStorage.getItem("gsiAuth");
-      const saved = raw && JSON.parse(raw);
-      if (saved?.email && saved?.exp * 1000 > Date.now()) {
-        window.userEmail = saved.email;
-        console.log("[LOGIN] sessionStorage 復元:", saved.email);
-      } else {
-        sessionStorage.removeItem("gsiAuth");
-        window.userEmail = "";
-      }
-    } catch (e) {
-      console.warn("[LOGIN] 復元エラー", e);
-      window.userEmail = "";
-    }
   }
 
   // --- ログイン後の画面制御（差し替え）---
@@ -395,15 +374,6 @@ function handleAccountSwitch(newEmail) {
     })();
 
      window.addEventListener('DOMContentLoaded', () => {
-      // 前回アカウント選択キャッシュを消す
-      try { google.accounts.id.disableAutoSelect(); } catch (e) {
-        console.warn("[LOGIN] disableAutoSelect失敗", e);
-      }
-    
-      // 保存状態を復元（expチェック付き）
-      restoreLoginState();
-    
-      // サイレントログイン可否チェック（診断用）
       if (window.google?.accounts?.id) {
         google.accounts.id.prompt((notification) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
@@ -411,28 +381,20 @@ function handleAccountSwitch(newEmail) {
           }
         });
       }
-    
-      // ページ遷移パラメータ処理
       const u = new URL(location.href);
       const p = u.searchParams.get('page');
-    
-      // page があるかどうかに関わらず、ログインボタンは常に出す
-      refreshGsiButton();
-    
       if (!p) return;
-    
+  
       // page 以外のパラメータも子に引き継ぐ
       const params = {};
-      u.searchParams.forEach((v, k) => {
-        if (k !== 'page') params[k] = v;
-      });
-    
+      u.searchParams.forEach((v, k) => { if (k !== 'page') params[k] = v; });
+
       history.replaceState({ page: p, params }, "", u.toString());
-    
+  
       // push=false で履歴を増やさず、今のURLのまま起動
       navigateTo(p, false, params);
+      refreshGsiButton();
     });
-
   
     const frame   = document.getElementById("gasFrame");
     const app     = document.getElementById("app");
@@ -816,5 +778,3 @@ window.addEventListener("message", (e) => {
   </script>
 </body>
 </html>
-
-
