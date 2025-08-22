@@ -816,7 +816,7 @@ window.addEventListener("message", (e) => {
     return;
   }
 
-  if (d.type === "misemaru:close") {
+  if (d.type === "misemaru:admin") {
     if (HOME_URL) location.href = HOME_URL;
     else hardResetToIndex();
     return;
@@ -883,6 +883,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
