@@ -693,17 +693,6 @@ function handleAccountSwitch(newEmail) {
     } catch { return false; }
   }
   
-  // 既存ヘルパがあるなら流用
-  const frame = document.getElementById("gasFrame");
-  const pageFromLocation = () => {
-    const u = new URL(location.href);
-    return u.searchParams.get("page") || "";
-  };
-  const framePage = () => {
-    try { return new URL(frame?.src || "", location.origin).searchParams.get("page") || ""; }
-    catch { return ""; }
-  };
-  
   // idToken 取得ヘルパ
   function getIdToken() {
     try {
@@ -843,6 +832,7 @@ function handleAccountSwitch(newEmail) {
   </script>
 </body>
 </html>
+
 
 
 
