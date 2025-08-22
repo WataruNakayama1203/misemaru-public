@@ -708,20 +708,28 @@ window.addEventListener("message", (e) => {
 
   if (d.type === "misemaru:child-ready") {
     const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
+  
     let idToken = "";
     try {
       const raw = sessionStorage.getItem("gsiAuth");
       if (raw) idToken = JSON.parse(raw)?.idToken || "";
       if (!idToken) idToken = sessionStorage.getItem("idToken") || "";
     } catch (_) {}
-    const page = framePage() || "";
   
-    console.log("[PARENT] child-ready 受信, email=", email, " hasToken=", !!idToken);
+    // iframe の現在URLから page を取得
+    let page = "";
+    try {
+      const f = document.getElementById("your-iframe-id");    // 実際のIDに
+      if (f && f.src) {
+        const u = new URL(f.src, location.href);
+        page = u.searchParams.get("page") || "";
+      }
+    } catch (_) {}
+  
+    console.log("[PARENT] child-ready 受信, email=", email, " hasToken=", !!idToken, " page=", page);
     e.source.postMessage({ type: "misemaru:email", email, idToken, page }, e.origin);
     return;
   }
-
-
 
   // ▶ ルーティング
   if (d.type === "misemaru:navigate") {
@@ -821,5 +829,6 @@ window.addEventListener("message", (e) => {
   </script>
 </body>
 </html>
+
 
 
