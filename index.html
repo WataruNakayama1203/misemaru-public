@@ -336,23 +336,56 @@ function handleAccountSwitch(newEmail) {
   }
 
   function onSignIn(response) {
-    const payload = parseGoogleCredential(response?.credential);
+    const token = response?.credential || "";
+    const payload = parseGoogleCredential(token);
     console.log("[LOGIN] onSignIn payload", payload);
+  
     const email = payload?.email || "";
-    if (!email) {
-      alert("メールアドレスが取得できませんでした。もう一度ログインしてください。");
+    const exp   = payload?.exp   || 0;   // 秒
+  
+    if (!email || !token) {
+      alert("Googleログインに失敗しました。もう一度お試しください。");
       showLoginPrompt();
       return;
     }
+  
+    // 表示用途にだけ使う
     window.userEmail = email;
-    try { sessionStorage.setItem("userEmail", email); } catch (e) {}
+  
+    // 署名付きトークンを保存（検証はサーバー側）
+    try {
+      sessionStorage.setItem("gsiAuth", JSON.stringify({ idToken: token, email, exp }));
+      sessionStorage.setItem("userEmail", email); // 既存コード互換のため残す（認可には使わない）
+      sessionStorage.setItem("idToken", token);   // 互換キーも用意
+    } catch(e) { console.warn(e); }
+  
     console.log("✅ Logged in as:", email);
     handleAccountSwitch(email);
+  
     const q = _afterSignInQueue.splice(0);
     q.forEach(fn => { try { fn?.(); } catch(e) { console.warn(e); } });
   
     setTimeout(routeAfterLogin, 0);
   }
+
+  function restoreLoginState() {
+    try {
+      const raw = sessionStorage.getItem("gsiAuth");
+      const saved = raw && JSON.parse(raw);
+      if (saved?.email && saved?.exp*1000 > Date.now() && saved?.idToken) {
+        window.userEmail = saved.email;
+      } else {
+        sessionStorage.removeItem("gsiAuth");
+        sessionStorage.removeItem("idToken");
+        window.userEmail = "";
+      }
+    } catch (e) {
+      console.warn("[LOGIN] 復元エラー", e);
+      window.userEmail = "";
+    }
+  }
+
+
 
   // --- ログイン後の画面制御（差し替え）---
   // ※ 親(GitHub)では google.script.run は使えないので呼ばない！
@@ -675,10 +708,20 @@ window.addEventListener("message", (e) => {
 
   if (d.type === "misemaru:request-email") {
     const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
-    console.log("[PARENT] request-email 受信, email=", email);
-    e.source.postMessage({ type: "misemaru:email", email }, e.origin);
+    const idToken = (function(){
+      try {
+        const raw = sessionStorage.getItem("gsiAuth");
+        if (raw) return JSON.parse(raw)?.idToken || "";
+        return sessionStorage.getItem("idToken") || "";
+      } catch(_) { return ""; }
+    })();
+    console.log("[PARENT] request-email 受信, email=", email, " hasToken=", !!idToken);
+  
+    // 互換のため type はそのまま、payload を拡張
+    e.source.postMessage({ type: "misemaru:email", email, idToken }, e.origin);
     return;
   }
+
 
   // ▶ ルーティング
   if (d.type === "misemaru:navigate") {
@@ -778,3 +821,4 @@ window.addEventListener("message", (e) => {
   </script>
 </body>
 </html>
+
