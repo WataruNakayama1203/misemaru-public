@@ -706,21 +706,21 @@ window.addEventListener("message", (e) => {
     }
   } catch (err) {}
 
-  if (d.type === "misemaru:request-email") {
+  if (d.type === "misemaru:child-ready") {
     const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
-    const idToken = (function(){
-      try {
-        const raw = sessionStorage.getItem("gsiAuth");
-        if (raw) return JSON.parse(raw)?.idToken || "";
-        return sessionStorage.getItem("idToken") || "";
-      } catch(_) { return ""; }
-    })();
-    console.log("[PARENT] request-email 受信, email=", email, " hasToken=", !!idToken);
+    let idToken = "";
+    try {
+      const raw = sessionStorage.getItem("gsiAuth");
+      if (raw) idToken = JSON.parse(raw)?.idToken || "";
+      if (!idToken) idToken = sessionStorage.getItem("idToken") || "";
+    } catch (_) {}
+    const page = framePage() || "";
   
-    // 互換のため type はそのまま、payload を拡張
-    e.source.postMessage({ type: "misemaru:email", email, idToken }, e.origin);
+    console.log("[PARENT] child-ready 受信, email=", email, " hasToken=", !!idToken);
+    e.source.postMessage({ type: "misemaru:email", email, idToken, page }, e.origin);
     return;
   }
+
 
 
   // ▶ ルーティング
@@ -821,4 +821,5 @@ window.addEventListener("message", (e) => {
   </script>
 </body>
 </html>
+
 
