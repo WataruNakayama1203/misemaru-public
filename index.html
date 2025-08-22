@@ -137,12 +137,33 @@
     top: 0.5rem;
     right: 0rem;
   }
+  /* コンテナ基準に絶対配置できるように */
+  #wrap { position: relative; }
   
-  /* 読み込み直後に横幅を広げないため 
-  #google-login-container .g_id_signin {
-    min-width: 200px;
-    max-width: 250px;
-    }*/
+  /* スマホ：画面の右上に固定（コンテナ無視） */
+  @media (max-width: 767.98px) {
+    #google-login-container{
+      position: fixed;
+      top: max(8px, env(safe-area-inset-top));
+      right: max(8px, env(safe-area-inset-right));
+      margin: 0;
+      z-index: 1000; /* 常に前面 */
+    }
+  }
+  
+  /* PC：コンテナの右端に揃える＋ロゴとほぼ水平 */
+  @media (min-width: 768px) {
+    #google-login-container{
+      position: absolute; /* #wrap を基準に配置される */
+      top: 0.5rem;        /* ロゴ画像と並行の高さ */
+      right: 0;           /* コンテナの右端にピッタリ */
+    }
+  }
+  
+  /* 子画面フルスクリーン中はボタン非表示（被り防止） */
+  .app-mode #google-login-container { display: none !important; }
+
+  
 </style>
 </head>
 <body>
@@ -862,6 +883,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
