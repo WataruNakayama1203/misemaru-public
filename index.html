@@ -153,10 +153,17 @@
   
   /* PC：コンテナの右端に揃える＋ロゴとほぼ水平 */
   @media (min-width: 768px) {
-    #google-login-container{
-      position: absolute; /* #wrap を基準に配置される */
-      top: 0.5rem;        /* ロゴ画像と並行の高さ */
-      right: 0;           /* コンテナの右端にピッタリ */
+    #google-login-container {
+      position: absolute;
+      top: 0.5rem;
+      right: 0;
+  
+      /* 🔽 バナー感を強める */
+      padding: 0.4rem 1rem;     /* 余白を広く */
+      font-size: 1.05rem;       /* 文字少し大きめ */
+      border-radius: 6px;       /* 角丸でボタン感UP */
+      background: #fff;         /* バナーっぽく白背景 */
+      box-shadow: 0 1px 4px rgba(0,0,0,.15); /* 軽く影をつける */
     }
   }
   
@@ -883,6 +890,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
