@@ -725,20 +725,28 @@ const replyAuth = (targetWin, targetOrigin) => {
   const email   = window.userEmail || sessionStorage.getItem("userEmail") || "";
   const idToken = getIdToken();
 
-  // page は frame.src → 取れなければ URL の ?page → それでも無ければ空
-  let page = framePage();
+  // まずURLから（親のクエリ）
+  let page = pageFromLocation() || framePage();
+
+  // まだpageが取れない場合のみ、iframe要素のsrcから読む
   if (!page) {
     try {
-      if (frame && frame.src) {
-        const u = new URL(frame.src, location.href);
-        page = u.searchParams.get("page") || "";
+      const iframeEl = document.getElementById("gasFrame"); // ← 必ず要素を取る
+      if (iframeEl) {
+        const raw = iframeEl.getAttribute("src") || iframeEl.src || "";
+        if (raw) {
+          const u = new URL(raw, location.href);
+          page = u.searchParams.get("page") || "";
+        }
       }
-    } catch {}
+    } catch (e) {
+      // 何もしない（失敗時はpage=""のままでもOK）
+    }
   }
-  if (!page) page = pageFromLocation() || "";
 
+  // 二重送信ガード（同じ child + page への多重応答を防ぐ）
   const key = `${targetWin}-${page}`;
-  if (_lastPostKey === key) return;   // ← 多重返信ガード
+  if (_lastPostKey === key) return;
   _lastPostKey = key;
 
   targetWin.postMessage({ type: "misemaru:email", email, idToken, page }, targetOrigin);
@@ -866,6 +874,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
