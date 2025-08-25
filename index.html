@@ -491,6 +491,7 @@ function restoreLoginState() {
     app.classList.add("hidden");
     overlay?.classList.add("hidden");
     inlineOverlay?.classList.remove("show");
+    refreshGsiButton();
   }
 
   // ★ indexへ“ハードに戻る”（履歴上書きで前のページを消す）
@@ -540,15 +541,14 @@ function isAllowedChildOrigin(origin) {
 
 //ログイン画面を表示
 function showLoginPrompt() {
-  console.log("showLoginPrompt() called");
   const heroElem = document.querySelector(".hero");
-  if (!heroElem) {
-    console.error("❌ .hero が見つかりません");
+  if (!heroElem) return;
+
+  const exist = document.getElementById("google-login-container");
+  if (exist) { 
+    refreshGsiButton();  // ← ここで再描画して早期 return
     return;
   }
-
-  if (document.getElementById("google-login-container")) return;
-
   const container = document.createElement("div");
   container.id = "google-login-container";
   container.className = "text-center my-4";
