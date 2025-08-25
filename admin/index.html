@@ -615,26 +615,6 @@ function isAllowedChildOrigin(origin) {
   } catch { return false; }
 }
 
-window.addEventListener("message", (ev) => {
-  const d = ev.data || {};
-  if (d.type !== "misemaru:child-ready") return;
-
-  if (!isAllowedChildOrigin(ev.origin)) {
-    console.warn("[PARENT] child-ready: 不許可オリジン", ev.origin);
-    return;
-  }
-  _childWin = ev.source;
-  _childOrigin = ev.origin;
-  console.log(" child-ready 受信: origin=", _childOrigin);
-
-  const postEmail = () => {
-    const email2 = window.userEmail || sessionStorage.getItem("userEmail") || "";
-    if (!email2) return;
-    _childWin.postMessage({ type:"misemaru:email", email: email2, page: framePage() || pageFromLocation() || "" }, _childOrigin);
-  };
-  if (window.userEmail || sessionStorage.getItem("userEmail")) postEmail(); else ensureSignedIn(postEmail);
-});
-
 // ====== ページ遷移処理 ======
 function navigateTo(page, push = true, params = {}) {
   if (!page) { hardResetToIndex(); return; }
@@ -758,18 +738,9 @@ function getIdToken() {
   } catch { return ""; }
 }
 
-// 親 ← 子: メッセージ受付（child-ready / request-email / navigate / close）
-window.addEventListener("message", (e) => {
-  if (ev?.data?.type === "misemaru:token-expired") {
-    try { forceReLogin(); } catch(_) {}
-    try { hardResetToIndex(); } catch(_) {}
-  }
-  
-  const d = e.data || {};
-  if (!isAllowedOrigin(e.origin)) return;
+let _lastPostKey = "";
 
-  // child-ready に応答して email + idToken + page を必ず同梱
-  if (d.type === "misemaru:child-ready") {
+  const replyAuth = (targetWin, targetOrigin) => {
     const email   = window.userEmail || sessionStorage.getItem("userEmail") || "";
     const idToken = getIdToken();
 
@@ -785,55 +756,75 @@ window.addEventListener("message", (e) => {
     }
     if (!page) page = pageFromLocation() || "";
 
-    console.log("[PARENT] child-ready 受信:", { email, hasToken: !!idToken, page });
-    e.source.postMessage({ type: "misemaru:email", email, idToken, page }, e.origin);
-    return;
-  }
+    const key = `${targetWin}-${page}`;
+    if (_lastPostKey === key) return;   // ← 多重返信ガード
+    _lastPostKey = key;
 
-  // 互換: 子が request-email を投げてきた場合も同じペイロードで返す
-  if (d.type === "misemaru:request-email") {
-    const email   = window.userEmail || sessionStorage.getItem("userEmail") || "";
-    const idToken = getIdToken();
-    const page    = framePage() || pageFromLocation() || "";
-    console.log("[PARENT] request-email 受信:", { email, hasToken: !!idToken, page });
-    e.source.postMessage({ type: "misemaru:email", email, idToken, page }, e.origin);
-    return;
-  }
+    targetWin.postMessage({ type: "misemaru:email", email, idToken, page }, targetOrigin);
+  };
 
-  // ルーティングと close は既存どおり
-  if (d.type === "misemaru:navigate") {
-    const push = d.replace ? false : true;
-    const params = (d.params && typeof d.params === "object") ? d.params : {};
-    if (typeof d.page === "string" && d.page) {
-      navigateTo(d.page, push, params);
+  window.addEventListener("message", (e) => {
+    const d = e.data || {};
+
+    // ① 期限切れは最優先で処理（Originを問わずに受ける）
+    if (d?.type === "misemaru:token-expired") {
+      try { forceReLogin(); } catch {}
+      try { hardResetToIndex(); } catch {}
       return;
     }
-    if (typeof d.url === "string" && d.url) {
-      const u = new URL(d.url, location.origin);
-      const page = u.searchParams.get("page") || "";
-      if (page) {
-        const p = {};
-        for (const [k, v] of u.searchParams.entries()) {
-          if (k !== "page") p[k] = v;
-        }
-        navigateTo(page, push, p);
+
+    // ② 子からの通常メッセージ（Originチェックを一本化）
+    if (!isAllowedOrigin(e.origin)) return;
+
+    // ③ child-ready：必ず email+idToken+page を1回だけ返す
+    if (d.type === "misemaru:child-ready") {
+      if (window.userEmail || sessionStorage.getItem("userEmail")) {
+        replyAuth(e.source, e.origin);
+      } else {
+        ensureSignedIn(() => replyAuth(e.source, e.origin));
       }
       return;
     }
-    return;
-  }
-  if (d.type === "misemaru:close") {
-    if (HOME_URL) location.href = HOME_URL;
-    else hardResetToIndex();
-    return;
-  }
 
-  if (d.type === "misemaru:admin-close") {
-    if (ADMIN_URL) location.href = ADMIN_URL;
-    else hardResetToIndex();
-    return;
-  }
-});
+    // ④ 互換：request-email も同じペイロードで返す
+    if (d.type === "misemaru:request-email") {
+      replyAuth(e.source, e.origin);
+      return;
+    }
+
+    // ⑤ ルーティングと close は既存どおり
+    if (d.type === "misemaru:navigate") {
+      const push = d.replace ? false : true;
+      const params = (d.params && typeof d.params === "object") ? d.params : {};
+      if (typeof d.page === "string" && d.page) {
+        navigateTo(d.page, push, params);
+        return;
+      }
+      if (typeof d.url === "string" && d.url) {
+        const u = new URL(d.url, location.origin);
+        const page = u.searchParams.get("page") || "";
+        if (page) {
+          const p = {};
+          for (const [k, v] of u.searchParams.entries()) if (k !== "page") p[k] = v;
+          navigateTo(page, push, p);
+        }
+        return;
+      }
+      return;
+    }
+
+    if (d.type === "misemaru:close") {
+      if (HOME_URL) location.href = HOME_URL;
+      else hardResetToIndex();
+      return;
+    }
+    if (d.type === "misemaru:admin-close") {
+      if (ADMIN_URL) location.href = ADMIN_URL;
+      else hardResetToIndex();
+      return;
+    }
+  });
+})();
 
 function setFrameUrlReplace(url) {
   const f = frame; // id="gasFrame"
@@ -895,6 +886,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
