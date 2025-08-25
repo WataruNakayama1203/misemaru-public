@@ -117,7 +117,7 @@
   }
   
   /* 読み替え中は薄くする（完全に非表示にしない） */
-  #frame.is-fading {
+  #gasFrameEl.is-fading {
     opacity: .01; /* 0にすると合成レイヤ落ち→白チラ要因になる端末がある */
   }
   
@@ -480,7 +480,7 @@ function restoreLoginState() {
     refreshGsiButton();
   });
 
-  const frame   = document.getElementById("gasFrame");
+  const gasFrameEl = document.getElementById("gasFrame");
   const app     = document.getElementById("app");
   const overlay = document.getElementById("overlay"); // あれば使う
 
@@ -507,7 +507,7 @@ function restoreLoginState() {
     document.body.classList.remove("app-mode");
     app.classList.add("hidden");
     app.classList.remove("fullscreen");
-    frame.classList.add("invisible");
+    gasFrameEl.classList.add("invisible");
     if (overlay) overlay.classList.add("hidden");
 
     // 履歴を「indexで置き換え」→ forwardスタックも消える
@@ -527,7 +527,10 @@ const inlineOverlay = document.getElementById("inlineOverlay");
 
 const framePage = () => {
   try {
-    return new URL(frame?.src || "", location.origin).searchParams.get("page") || "";
+    const el = document.getElementById("gasFrame");
+    const raw = el?.getAttribute("src") || "";
+    if (!raw) return "";
+    return new URL(raw, location.origin).searchParams.get("page") || "";
   } catch { return ""; }
 };
 
@@ -626,8 +629,8 @@ function navigateTo(page, push = true, params = {}) {
   }
 
   const cleanup = () => {
-    frame.removeEventListener("load", onLoad);
-    frame.removeEventListener("error", onError);
+    gasFrameEl.removeEventListener("load", onLoad);
+    gasFrameEl.removeEventListener("error", onError);
     clearTimeout(overlayTimer);
     clearTimeout(timer);
   };
@@ -664,19 +667,19 @@ function navigateTo(page, push = true, params = {}) {
     hardResetToIndex();
   }, 12000);
 
-  frame.addEventListener("load", onLoad,  { once: true });
-  frame.addEventListener("error", onError, { once: true });
+  gasFrameEl.addEventListener("load", onLoad,  { once: true });
+  gasFrameEl.addEventListener("error", onError, { once: true });
 
   // 保険で window.name にも埋める（子側が拾えることがある）
   requestAnimationFrame(() => {
     console.log("[PARENT] setFrameUrlReplace:", nextUrl);
     try {
       const payload = { type: "misemaru-email", email, page };
-      frame.name = JSON.stringify(payload);
-      frame.setAttribute("name", frame.name);
-      console.log("[PARENT] frame.name セット:", frame.name);
+      gasFrameEl.name = JSON.stringify(payload);
+      gasFrameEl.setAttribute("name", gasFrameEl.name);
+      console.log("[PARENT] gasFrameEl.name セット:", gasFrameEl.name);
     } catch (e) {
-      console.warn("[PARENT] frame.name セット失敗:", e);
+      console.warn("[PARENT] gasFrameEl.name セット失敗:", e);
     }
     setFrameUrlReplace(nextUrl);
   });
@@ -745,7 +748,7 @@ const replyAuth = (targetWin, targetOrigin) => {
   }
 
   // 二重送信ガード（同じ child + page への多重応答を防ぐ）
-  const key = `${targetWin}-${page}`;
+  const key = page || "_";
   if (_lastPostKey === key) return;
   _lastPostKey = key;
 
@@ -815,14 +818,8 @@ window.addEventListener("message", (e) => {
 });
 
 function setFrameUrlReplace(url) {
-  const f = frame; // id="gasFrame"
-  try {
-    if (f && f.contentWindow && f.contentWindow.location) {
-      f.contentWindow.location.replace(url);
-      return;
-    }
-  } catch(_) { /* cross-origin read はNGでも write はOK。read失敗は無視 */ }
-  if (f) f.src = url;
+  const f = document.getElementById("gasFrame");
+  if (f) f.src = url; // 読まない。書くだけ
 }
 
 window.addEventListener("pageshow", (ev) => {
@@ -874,6 +871,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
