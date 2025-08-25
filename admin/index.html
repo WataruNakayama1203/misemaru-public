@@ -760,6 +760,11 @@ function getIdToken() {
 
 // 親 ← 子: メッセージ受付（child-ready / request-email / navigate / close）
 window.addEventListener("message", (e) => {
+  if (ev?.data?.type === "misemaru:token-expired") {
+    try { forceReLogin(); } catch(_) {}
+    try { hardResetToIndex(); } catch(_) {}
+  }
+  
   const d = e.data || {};
   if (!isAllowedOrigin(e.origin)) return;
 
@@ -890,6 +895,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
