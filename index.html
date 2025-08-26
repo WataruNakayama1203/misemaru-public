@@ -636,7 +636,6 @@ function isAllowedChildOrigin(origin) {
 window.addEventListener("message", (ev) => {
   if (ev?.data?.type === "misemaru:token-expired") {
     try { forceReLogin(); } catch(_) {}
-    try { hardResetToIndex(); } catch(_) {}
   }
   const d = ev.data || {};
   if (d.type !== "misemaru:child-ready") return;
