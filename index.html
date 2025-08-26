@@ -522,16 +522,16 @@ function restoreLoginState() {
 
   // ★ indexへ“ハードに戻る”（履歴上書きで前のページを消す）
   function hardResetToIndex() {
-    // 見た目を先にindex状態へ
     document.body.classList.remove("app-mode");
-    app?.classList.add("hidden");
-    app.classList.remove("fullscreen");
-    frame?.classList.add("invisible");
+    if (app) {
+      app.classList.add("hidden");
+      app.classList.remove("fullscreen");
+    }
+    if (frame) frame.classList.add("invisible");
     if (overlay) overlay.classList.add("hidden");
-
-    // 履歴を「indexで置き換え」→ forwardスタックも消える
     location.replace(BASE_URL);
   }
+
 
   function urlFor(page, params = {}) {
     const u = new URL(GAS_BASE);
