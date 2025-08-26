@@ -394,6 +394,7 @@ setInterval(() => {
 }
 
 function forceReLogin() {
+  try { showParentUI(); } catch {}
   // トークン情報クリア
   try {
     sessionStorage.removeItem("gsiAuth");
@@ -896,6 +897,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
