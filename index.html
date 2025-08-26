@@ -371,6 +371,7 @@ setInterval(() => {
 function forceReLogin() {
 alert("ログインセッションが切れました。再度ログインしてください。");
 try {
+  sessionStorage.removeItem("gsiAuth");
   sessionStorage.removeItem("idToken");
   sessionStorage.removeItem("userEmail");
 } catch(e) {}
@@ -498,9 +499,9 @@ function restoreLoginState() {
   function hardResetToIndex() {
     // 見た目を先にindex状態へ
     document.body.classList.remove("app-mode");
-    app.classList.add("hidden");
+    app?classList.add("hidden");
     app.classList.remove("fullscreen");
-    frame.classList.add("invisible");
+    frame?classList.add("invisible");
     if (overlay) overlay.classList.add("hidden");
 
     // 履歴を「indexで置き換え」→ forwardスタックも消える
@@ -624,9 +625,15 @@ window.addEventListener("message", (ev) => {
   console.log(" child-ready 受信: origin=", _childOrigin);
 
   const postEmail = () => {
-    const email2 = window.userEmail || sessionStorage.getItem("userEmail") || "";
+    const email2  = window.userEmail || sessionStorage.getItem("userEmail") || "";
     if (!email2) return;
-    _childWin.postMessage({ type:"misemaru:email", email: email2, page: framePage() || pageFromLocation() || "" }, _childOrigin);
+    const idToken = getIdToken();
+    _childWin.postMessage({
+      type: "misemaru:email",
+      email: email2,
+      idToken,
+      page: framePage() || pageFromLocation() || ""
+    }, _childOrigin);
   };
   if (window.userEmail || sessionStorage.getItem("userEmail")) postEmail(); else ensureSignedIn(postEmail);
 });
