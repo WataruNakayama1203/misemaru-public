@@ -236,7 +236,7 @@
           <p>再度ログインしてください。</p>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-primary" onclick="hardResetToIndex()">ログイン画面へ</button>
+          <button type="button" class="btn btn-primary" onclick="startGoogleLogin()">OK</button>
         </div>
       </div>
     </div>
@@ -533,6 +533,59 @@ function restoreLoginState() {
     if (overlay) overlay.classList.add("hidden");
     location.replace(BASE_URL);
   }
+
+  function startGoogleLogin() {
+    // 親UIに戻す
+    try { showParentUI(); } catch {}
+  
+    const modalEl = document.getElementById("sessionExpiredModal");
+    const modal   = bootstrap.Modal.getInstance(modalEl);
+  
+    // 認証状態クリア
+    try {
+      sessionStorage.removeItem("gsiAuth");
+      sessionStorage.removeItem("idToken");
+      sessionStorage.removeItem("userEmail");
+    } catch {}
+    window.userEmail = "";
+  
+    // 最後に見ていたページを保存
+    try {
+      const last = pageFromLocation() || framePage() || "";
+      if (last) sessionStorage.setItem("resumePage", last);
+    } catch {}
+  
+    // フォーカスを外してからモーダル閉じ
+    if (modalEl.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  
+    const doPrompt = () => {
+      if (window.google?.accounts?.id) {
+        try { window.google.accounts.id.disableAutoSelect?.(); } catch {}
+        google.accounts.id.prompt((n) => {
+          if (n.isNotDisplayed?.() || n.isSkippedMoment?.()) {
+            refreshGsiButton();
+            showInlineLoginPrompt();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        });
+      } else {
+        const t = setInterval(() => {
+          if (window.google?.accounts?.id) { clearInterval(t); doPrompt(); }
+        }, 100);
+        setTimeout(() => clearInterval(t), 4000);
+      }
+    };
+  
+    if (modal) {
+      modalEl.addEventListener("hidden.bs.modal", doPrompt, { once: true });
+      modal.hide();
+    } else {
+      doPrompt();
+    }
+  }
+
 
 
   function urlFor(page, params = {}) {
