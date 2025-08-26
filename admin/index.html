@@ -225,6 +225,24 @@
       <div class="spinner"></div>
       <div class="overlay-msg">ページ読み込み中…</div>
     </div>
+
+    <!-- 🔹 セッション切れモーダル -->
+    <div class="modal fade" id="sessionExpiredModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">ログインセッションが切れました</h5>
+          </div>
+          <div class="modal-body">
+            <p>再度ログインしてください。</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" onclick="hardResetToIndex()">ログイン画面へ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   
     <footer class="text-center text-muted" style="margin-top: 1rem; font-size: 0.9rem;">
       &copy; 2025 みせまるクラウド. All rights reserved.
@@ -376,13 +394,20 @@ setInterval(() => {
 }
 
 function forceReLogin() {
-alert("ログインセッションが切れました。再度ログインしてください。");
-try {
-  sessionStorage.removeItem("gsiAuth");
-  sessionStorage.removeItem("idToken");
-  sessionStorage.removeItem("userEmail");
-} catch(e) {}
-refreshGsiButton(); // ログインボタンを再表示
+  // トークン情報クリア
+  try {
+    sessionStorage.removeItem("gsiAuth");
+    sessionStorage.removeItem("idToken");
+    sessionStorage.removeItem("userEmail");
+  } catch(e) {}
+  refreshGsiButton();
+
+  // モーダルを表示（Bootstrap 5）
+  const modalEl = document.getElementById("sessionExpiredModal");
+  if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
 }
 
 function onSignIn(response) {
@@ -872,6 +897,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
