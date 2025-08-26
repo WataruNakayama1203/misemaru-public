@@ -19,7 +19,7 @@
   #wrap { min-height: 100%; display: flex; flex-direction: column; }
   #topMenu { margin-bottom: 1rem; }
 
-  /* iframe 域（通常時は親の中に収まる） */
+  /* i 域（通常時は親の中に収まる） */
   #app { flex: 1; }
 
   /* ユーティリティ */
@@ -50,7 +50,7 @@
     z-index: 10;
     background: #a3d5f0;                 /* 透け防止 */
   }
-  /* iframe を“実”ビューポート高に。iOSでも戻らない */
+  /* i を“実”ビューポート高に。iOSでも戻らない */
   #app.fullscreen iframe {
     width: 100vw;
     height: 100vh;                        /* 最低限のフォールバック */
@@ -59,7 +59,7 @@
     -webkit-overflow-scrolling: touch;    /* 慣性スクロール */
   }
   @supports (height: 100svh) {
-    #app.fullscreen iframe { height: 100svh; }  /* Safari対策 */
+    #app.fullscreen i { height: 100svh; }  /* Safari対策 */
   }
   @supports (height: 100dvh) {
     #app.fullscreen iframe { height: 100dvh; }  /* 新標準：実画面高 */
@@ -378,6 +378,7 @@ setInterval(() => {
 function forceReLogin() {
 alert("ログインセッションが切れました。再度ログインしてください。");
 try {
+  sessionStorage.removeItem("gsiAuth");
   sessionStorage.removeItem("idToken");
   sessionStorage.removeItem("userEmail");
 } catch(e) {}
@@ -871,6 +872,7 @@ window.addEventListener("popstate", () => {
 </script>
 </body>
 </html>
+
 
 
 
