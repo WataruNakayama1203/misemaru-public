@@ -237,7 +237,7 @@
             <p>再度ログインしてください。</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-primary" onclick="hardResetToIndex()">ログイン画面へ</button>
+            <button type="button" class="btn btn-primary" onclick="startGoogleLogin()">ログイン画面へ</button>
           </div>
         </div>
       </div>
@@ -444,6 +444,61 @@ function onSignIn(response) {
 
   setTimeout(routeAfterLogin, 0);
   scheduleTokenRefresh();
+}
+
+function startGoogleLogin() {
+  // 親UIに戻しつつ、モーダルを閉じる
+  try { showParentUI(); } catch {}
+  try {
+    const m = bootstrap.Modal.getInstance(document.getElementById("sessionExpiredModal"));
+    m?.hide();
+  } catch {}
+
+  // 認証状態をクリア（←これ超重要。残ってると prompt が出ない）
+  try {
+    sessionStorage.removeItem("gsiAuth");
+    sessionStorage.removeItem("idToken");
+    sessionStorage.removeItem("userEmail");
+  } catch {}
+  window.userEmail = "";
+
+  // 直前に見ていた子ページを復帰できるよう保存
+  try {
+    const last = pageFromLocation() || framePage() || "";
+    if (last) sessionStorage.setItem("resumePage", last);
+  } catch {}
+
+  // GSIのアカウント選択を即表示（ユーザー操作内なのでOK）
+  if (window.google?.accounts?.id) {
+    try { window.google.accounts.id.disableAutoSelect?.(); } catch {}
+    window.google.accounts.id.prompt((n) => {
+      if (n.isNotDisplayed?.() || n.isSkippedMoment?.()) {
+        // フォールバック：ログインボタン描画＋注意表示
+        refreshGsiButton();
+        showInlineLoginPrompt();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+  } else {
+    // GSIがまだロード前なら少し待って再試行
+    const t = setInterval(() => {
+      if (window.google?.accounts?.id) { clearInterval(t); startGoogleLogin(); }
+    }, 100);
+    setTimeout(() => clearInterval(t), 4000);
+  }
+}
+
+// ✅ ログイン完了時に元の画面へ戻す
+const _origRouteAfterLogin = routeAfterLogin;
+function routeAfterLogin() {
+  const resume = sessionStorage.getItem("resumePage") || "";
+  if (resume) {
+    sessionStorage.removeItem("resumePage");
+    navigateTo(resume, false);
+    return;
+  }
+  // 退避前の挙動（トップへ）
+  _origRouteAfterLogin();
 }
 
 function restoreLoginState() {
@@ -898,3 +953,4 @@ window.addEventListener("popstate", () => {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
