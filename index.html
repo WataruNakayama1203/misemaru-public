@@ -633,35 +633,6 @@ function isAllowedChildOrigin(origin) {
   } catch { return false; }
 }
 
-window.addEventListener("message", (ev) => {
-  if (ev?.data?.type === "misemaru:token-expired") {
-    try { forceReLogin(); } catch(_) {}
-  }
-  const d = ev.data || {};
-  if (d.type !== "misemaru:child-ready") return;
-
-  if (!isAllowedChildOrigin(ev.origin)) {
-    console.warn("[PARENT] child-ready: 不許可オリジン", ev.origin);
-    return;
-  }
-  _childWin = ev.source;
-  _childOrigin = ev.origin;
-  console.log(" child-ready 受信: origin=", _childOrigin);
-
-  const postEmail = () => {
-    const email2  = window.userEmail || sessionStorage.getItem("userEmail") || "";
-    if (!email2) return;
-    const idToken = getIdToken();
-    _childWin.postMessage({
-      type: "misemaru:email",
-      email: email2,
-      idToken,
-      page: framePage() || pageFromLocation() || ""
-    }, _childOrigin);
-  };
-  if (window.userEmail || sessionStorage.getItem("userEmail")) postEmail(); else ensureSignedIn(postEmail);
-});
-
 // ====== ページ遷移処理 ======
 function navigateTo(page, push = true, params = {}) {
   if (!page) { hardResetToIndex(); return; }
@@ -787,6 +758,13 @@ function getIdToken() {
 // 親 ← 子: メッセージ受付（child-ready / request-email / navigate / close）
 window.addEventListener("message", (e) => {
   const d = e.data || {};
+
+  // 期限切れは最優先で処理
+  if (d?.type === "misemaru:token-expired") {
+    try { forceReLogin(); } catch {}
+    return;
+  }
+
   if (!isAllowedOrigin(e.origin)) return;
 
   // child-ready に応答して email + idToken + page を必ず同梱
@@ -798,8 +776,9 @@ window.addEventListener("message", (e) => {
     let page = framePage();
     if (!page) {
       try {
-        if (frame && frame.src) {
-          const u = new URL(frame.src, location.href);
+        const frameEl = document.getElementById("gasFrame");
+        if (frameEl && frameEl.src) {
+          const u = new URL(frameEl.src, location.href);
           page = u.searchParams.get("page") || "";
         }
       } catch {}
@@ -834,9 +813,7 @@ window.addEventListener("message", (e) => {
       const page = u.searchParams.get("page") || "";
       if (page) {
         const p = {};
-        for (const [k, v] of u.searchParams.entries()) {
-          if (k !== "page") p[k] = v;
-        }
+        for (const [k, v] of u.searchParams.entries()) if (k !== "page") p[k] = v;
         navigateTo(page, push, p);
       }
       return;
@@ -849,7 +826,13 @@ window.addEventListener("message", (e) => {
     else hardResetToIndex();
     return;
   }
+  if (d.type === "misemaru:admin-close") {
+    if (ADMIN_URL) location.href = ADMIN_URL;
+    else hardResetToIndex();
+    return;
+  }
 });
+
 
 function setFrameUrlReplace(url) {
   const f = frame; // id="gasFrame"
