@@ -499,9 +499,9 @@ function restoreLoginState() {
   function hardResetToIndex() {
     // 見た目を先にindex状態へ
     document.body.classList.remove("app-mode");
-    app?classList.add("hidden");
+    app?.classList.add("hidden");
     app.classList.remove("fullscreen");
-    frame?classList.add("invisible");
+    frame?.classList.add("invisible");
     if (overlay) overlay.classList.add("hidden");
 
     // 履歴を「indexで置き換え」→ forwardスタックも消える
