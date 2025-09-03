@@ -499,6 +499,19 @@ function restoreLoginState() {
 
     history.replaceState({ page: p, params }, "", u.toString());
 
+     // --- ここに追記 ---
+    if (sessionStorage.getItem("showLoginBanner")) {
+      sessionStorage.removeItem("showLoginBanner");
+    
+      const hero = document.querySelector(".hero");
+      if (hero) {
+        const prompt = document.createElement("div");
+        prompt.className = "text-center my-1";
+        prompt.innerHTML = `<p class="text-danger fw-bold">Googleアカウントでログインしてください</p>`;
+        hero.insertAdjacentElement("afterend", prompt);
+      }
+    }
+
     // push=false で履歴を増やさず、今のURLのまま起動
     navigateTo(p, false, params);
     refreshGsiButton();
@@ -664,23 +677,10 @@ function showLoginPrompt() {
   }
 }
 
-
 function showInlineLoginPrompt() {
-  // すでに表示済みなら何もしない
-  if (document.getElementById("inline-login-prompt")) return;
-
-  const hero = document.querySelector(".hero");
-  if (!hero) return;
-
-  const prompt = document.createElement("div");
-  prompt.id = "inline-login-prompt";
-  prompt.className = "text-center my-1";
-  prompt.innerHTML = `
-    <p class="text-danger fw-bold">Googleアカウントでログインしてください</p>
-  `;
-
-  // heroのすぐ下に挿入
-  hero.insertAdjacentElement("afterend", prompt);
+  // フラグを残して index に戻す
+  sessionStorage.setItem("showLoginBanner", "1");
+  location.replace(BASE_URL);
 }
 
 // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
