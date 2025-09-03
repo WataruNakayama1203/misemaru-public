@@ -489,20 +489,11 @@ function restoreLoginState() {
         }
       });
     }
-    const u = new URL(location.href);
-    const p = u.searchParams.get('page');
-    if (!p) return;
-
-    // page 以外のパラメータも子に引き継ぐ
-    const params = {};
-    u.searchParams.forEach((v, k) => { if (k !== 'page') params[k] = v; });
-
-    history.replaceState({ page: p, params }, "", u.toString());
-
-     // --- ここに追記 ---
+  
+    // --- ここを先に実行 ---
     if (sessionStorage.getItem("showLoginBanner")) {
       sessionStorage.removeItem("showLoginBanner");
-    
+  
       const hero = document.querySelector(".hero");
       if (hero) {
         const prompt = document.createElement("div");
@@ -511,11 +502,22 @@ function restoreLoginState() {
         hero.insertAdjacentElement("afterend", prompt);
       }
     }
-
+  
+    const u = new URL(location.href);
+    const p = u.searchParams.get('page');
+    if (!p) return;
+  
+    // page 以外のパラメータも子に引き継ぐ
+    const params = {};
+    u.searchParams.forEach((v, k) => { if (k !== 'page') params[k] = v; });
+  
+    history.replaceState({ page: p, params }, "", u.toString());
+  
     // push=false で履歴を増やさず、今のURLのまま起動
     navigateTo(p, false, params);
     refreshGsiButton();
   });
+
 
   const frame   = document.getElementById("gasFrame");
   const app     = document.getElementById("app");
