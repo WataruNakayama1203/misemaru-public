@@ -367,7 +367,7 @@ function ensureSignedIn(runAfter) {
      console.warn("[LOGIN] prompt() error", e);
    }
  }
- reloadIndexAndShowLogin();  
+ showInlineLoginPrompt();
 }
 
 function scheduleTokenRefresh() {
@@ -401,7 +401,11 @@ function forceReLogin() {
   refreshGsiButton();
 
   // モーダルを表示（Bootstrap 5）
-  reloadIndexAndShowLogin();
+  const modalEl = document.getElementById("sessionExpiredModal");
+  if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
 }
 
 function onSignIn(response) {
@@ -456,46 +460,6 @@ function restoreLoginState() {
   }
 }
 
-// GSI読み込み待ちユーティリティ
-function ensureGsiReady(cb) {
-  if (window.google?.accounts?.id) return cb?.();
-  const t = setInterval(() => {
-    if (window.google?.accounts?.id) { clearInterval(t); cb?.(); }
-  }, 120);
-  setTimeout(() => clearInterval(t), 6000);
-}
-
-// ログインバナーを差し込む（重複防止）
-function upsertLoginBanner(text = "右上のGoogleアカウントでログインしてください") {
-  const id = "inline-login-prompt";
-  let el = document.getElementById(id);
-  if (!el) {
-    el = document.createElement("div");
-    el.id = id;
-    el.className = "text-center my-1";
-    const hero = document.querySelector(".hero");
-    (hero || document.body).insertAdjacentElement("afterend", el);
-  }
-  el.innerHTML = `<p class="text-danger fw-bold">${text}</p>`;
-}
-
-// index を再ロードしてログインUIを確実に出す
-function reloadIndexAndShowLogin(msg = "右上のGoogleアカウントでログインしてください") {
-  try { sessionStorage.setItem("pendingLoginMessage", msg); } catch {}
-  const nowBase = (new URL(location.href)).origin + (new URL(location.href)).pathname;
-  if (nowBase !== BASE_URL) {
-    // 別ページ (?page=...) なら index へ強制遷移（完全再読み込み）
-    location.replace(BASE_URL);
-  } else {
-    // 既に index なら「親UI表示 → ボタン再描画 → バナー表示」を即実行
-    try { showParentUI(); } catch {}
-    ensureGsiReady(() => {
-      reloadIndexAndShowLogin();
-    });
-  }
-}
-
-
 
 
 // --- ログイン後の画面制御（差し替え）---
@@ -538,22 +502,6 @@ function reloadIndexAndShowLogin(msg = "右上のGoogleアカウントでログ�
     // push=false で履歴を増やさず、今のURLのまま起動
     navigateTo(p, false, params);
     refreshGsiButton();
-
-     // 🔸 index再ロード後にログイン案内を出すためのフック
-    const pendingMsg = sessionStorage.getItem("pendingLoginMessage");
-    if (pendingMsg) {
-      sessionStorage.removeItem("pendingLoginMessage");
-      try { showParentUI(); } catch {}
-      ensureGsiReady(() => {
-        refreshGsiButton();
-        upsertLoginBanner(pendingMsg);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
-    } else {
-      // indexに居て未ログインなら念のためボタンを手動再描画
-      const email = window.userEmail || sessionStorage.getItem("userEmail") || "";
-      if (!email) ensureGsiReady(() => refreshGsiButton());
-    }
   });
 
   const frame   = document.getElementById("gasFrame");
@@ -716,9 +664,23 @@ function showLoginPrompt() {
   }
 }
 
-function showInlineLoginPrompt(text = "右上のGoogleアカウントでログインしてください") {
-  // どの呼び出し元からでも「index再ロード → ボタン確実表示 → バナー」
-  reloadIndexAndShowLogin(text);
+
+function showInlineLoginPrompt() {
+  // すでに表示済みなら何もしない
+  if (document.getElementById("inline-login-prompt")) return;
+
+  const hero = document.querySelector(".hero");
+  if (!hero) return;
+
+  const prompt = document.createElement("div");
+  prompt.id = "inline-login-prompt";
+  prompt.className = "text-center my-1";
+  prompt.innerHTML = `
+    <p class="text-danger fw-bold">Googleアカウントでログインしてください</p>
+  `;
+
+  // heroのすぐ下に挿入
+  hero.insertAdjacentElement("afterend", prompt);
 }
 
 // --- 追加：子オリジン許可チェックと child-ready ハンドラ ---
